@@ -175,12 +175,12 @@ export default function(
           segmentInfos: initSegmentInfos,
         });
       }
-      if (__DEV__) {
-        assert(responseData instanceof ArrayBuffer);
-      }
-      const responseBuffer = new Uint8Array(responseData as ArrayBuffer);
+      const responseBuffer = response.responseData instanceof Uint8Array
+      ? response.responseData
+       : new Uint8Array(response.responseData);
       const { nextSegments, segmentInfos } =
         extractTimingsInfos(responseBuffer, segment, manifest.isLive);
+
       const segmentData = patchSegment(responseBuffer, segmentInfos.time);
 
       if (nextSegments) {
@@ -335,7 +335,7 @@ export default function(
   const imageTrackPipeline = {
     loader(
       { segment, representation } : ISegmentLoaderArguments
-    ) : ILoaderObservable<ArrayBuffer> {
+    ) : ILoaderObservable<ArrayBuffer|Uint8Array> {
       if (segment.isInit) {
         return Observable.empty();
       } else {
@@ -350,7 +350,7 @@ export default function(
     },
 
     parser(
-      { response } : ISegmentParserArguments<Uint8Array|ArrayBuffer>
+      { response } : ISegmentParserArguments<ArrayBuffer|Uint8Array>
     ) : ImageParserObservable {
       const responseData = response.responseData;
       const blob = new Uint8Array(responseData);

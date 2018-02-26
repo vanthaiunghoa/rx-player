@@ -182,7 +182,7 @@ export default function(
     },
 
     parser(
-      { response } : ISegmentParserArguments<Uint8Array|ArrayBuffer>
+      { response } : ISegmentParserArguments<ArrayBuffer|Uint8Array>
     ) : ImageParserObservable {
       const responseData = response.responseData;
       const blob = new Uint8Array(responseData);
