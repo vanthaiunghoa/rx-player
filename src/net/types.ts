@@ -18,12 +18,14 @@ import { Observable } from "rxjs/Observable";
 import { Observer } from "rxjs/Observer";
 import Manifest, {
   Adaptation,
-  IRepresentationIndex,
   ISegment,
   Period,
   Representation,
 } from "../manifest";
+import IRepresentationIndex from "../manifest/representation_index/interfaces";
+import { IMetaManifestInfo } from "../net/metaplaylist/index";
 import { IBifThumbnail } from "../parsers/images/bif";
+import { IParsedManifest } from "../parsers/manifest/types";
 
 // contains timings info on a single audio/video/text/image segment
 export interface ISegmentTimingInfos {
@@ -116,6 +118,8 @@ export interface ISegmentParserArguments<T> {
   representation : Representation;
   segment : ISegment;
   init? : ISegmentTimingInfos;
+  period : Period;
+  timeOffset? : number;
 }
 
 // -- response
@@ -127,7 +131,7 @@ export type IManifestParserObservable = Observable<{
 
 export type SegmentParserObservable = Observable<{
   segmentData? : Uint8Array|ArrayBuffer;
-  segmentInfos : ISegmentTimingInfos|null;
+  segmentInfos? : ISegmentTimingInfos|null;
 }>;
 
 export interface ITextTrackSegmentData {
@@ -168,6 +172,47 @@ export interface ITransportPipelines {
     loader: (x : IManifestLoaderArguments) =>
       ILoaderObservable<Document|string>;
     parser: (x : IManifestParserArguments<Document|string>) =>
+      IManifestParserObservable;
+  };
+
+  audio: {
+    loader: (x : ISegmentLoaderArguments) =>
+      ILoaderObservable<Uint8Array|ArrayBuffer>;
+    parser: (x : ISegmentParserArguments<Uint8Array|ArrayBuffer>) =>
+      SegmentParserObservable;
+  };
+
+  video: {
+    loader: (x : ISegmentLoaderArguments) =>
+      ILoaderObservable<Uint8Array|ArrayBuffer>;
+    parser: (x : ISegmentParserArguments<Uint8Array|ArrayBuffer>) =>
+      SegmentParserObservable;
+  };
+
+  text: {
+    loader: (x : ISegmentLoaderArguments) =>
+      ILoaderObservable<Uint8Array|ArrayBuffer|string>;
+    parser: (x : ISegmentParserArguments<Uint8Array|ArrayBuffer|string>) =>
+      TextTrackParserObservable;
+  };
+
+  image: {
+    loader: (x : ISegmentLoaderArguments) =>
+      ILoaderObservable<Uint8Array|ArrayBuffer>;
+    parser: (x : ISegmentParserArguments<Uint8Array|ArrayBuffer>) =>
+      ImageParserObservable;
+  };
+}
+
+export interface IMetaTransportPipelines {
+
+  manifest: {
+    // TODO Remove resolver
+    resolver?: (x : IManifestLoaderArguments) =>
+      IResolverObservable;
+    loader: (x : IManifestLoaderArguments) =>
+      ILoaderObservable<IMetaManifestInfo>;
+    parser: (x : IManifestParserArguments<IMetaManifestInfo>) =>
       IManifestParserObservable;
   };
 

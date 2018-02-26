@@ -31,6 +31,9 @@ if (__FEATURES__.DASH) {
 if (__FEATURES__.DIRECTFILE) {
   exported.directfile = require("./directfile/index.ts").default;
 }
+if (__FEATURES__.METAPLAYLIST) {
+  exported.metaplaylist = require("./metaplaylist/index.ts").default;
+}
 /* tslint:enable no-var-requires */
 
 export {
