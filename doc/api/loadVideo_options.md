@@ -48,13 +48,15 @@ Can be either:
 
   - ``"smooth"`` - for Microsoft Smooth Streaming streams
 
+  - ``"metaplaylist"`` for MetaPlaylist streams
+
 This property is mandatory.
 
 ### <a name="prop-url"></a>url
 
 _type_: ``string|undefined``
 
-The URL to the Smooth or DASH manifest.
+The URL to the Smooth,DASH or MetaPlaylist manifest.
 
 This property is mandatory.
 
