@@ -25,6 +25,7 @@ const LEVELS : { [level : string] : number } = {
 };
 
 type tConsoleFn = (...args : any[]) => void;
+type tLazyConsoleFn = (fn : () => (string|void)) => void;
 
 let currentLevel : string = Object.keys(LEVELS)[0];
 
@@ -34,6 +35,10 @@ export interface ILogger {
   warn : tConsoleFn;
   info : tConsoleFn;
   debug : tConsoleFn;
+  lazyError : tLazyConsoleFn;
+  lazyWarn : tLazyConsoleFn;
+  lazyInfo : tLazyConsoleFn;
+  lazyDebug : tLazyConsoleFn;
   setLevel(levelStr : string) : void;
   getLevel() : string;
 }
@@ -44,6 +49,10 @@ const logger : ILogger = {
   warn: noop,
   info: noop,
   debug: noop,
+  lazyError : noop,
+  lazyWarn: noop,
+  lazyInfo: noop,
+  lazyDebug: noop,
 
   setLevel(levelStr : string) {
     let level;
@@ -65,6 +74,18 @@ const logger : ILogger = {
       console.info.bind(console) : noop;
     this.debug = (level >= LEVELS.DEBUG) ?
       console.log.bind(console) : noop;
+
+    /* tslint:disable no-console */
+    this.lazyError = (level >= LEVELS.ERROR) ?
+      (fn) => console.error(fn()) : noop;
+    this.lazyWarn = (level >= LEVELS.WARNING) ?
+      (fn) => console.warn(fn()) : noop;
+    this.lazyInfo = (level >= LEVELS.INFO) ?
+      (fn) => console.info(fn()) : noop;
+    this.lazyDebug = (level >= LEVELS.DEBUG) ?
+      (fn) => console.log(fn()) : noop;
+    /* tslint:enable no-console */
+
     /* tslint:enable no-invalid-this */
   },
 
