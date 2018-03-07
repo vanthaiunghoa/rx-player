@@ -6,9 +6,158 @@
       <title>RxPlayer - CANAL+ (stand-alone demo)</title>
     </head>
     <body>
-      <video id="video"></video>
+      <video id="video" width="1600px" height="900px"></video>
       <script type="text/javascript" src="./lib.js" charset="utf-8"></script>
       <script charset="utf-8">
+
+        function passInit(callback) {
+          const body = document.getElementsByTagName('body')[0];
+          const passScript = document.createElement('script');
+          passScript.type = 'text/javascript';
+          const passCSS = document.createElement('link');
+          passCSS.type = 'text/css';
+          passCSS.rel = 'stylesheet';
+          passCSS.media = 'screen';
+          passScript.src = 'https://media-pass.canal-plus.com/latest/js/bundle.js';
+          passCSS.href = 'https://media-pass.canal-plus.com/1/css/basic.css';
+
+          passScript.onload = () => {
+            try {
+              window.waitForPassJSON(() => {
+                const passToken = window.getPassToken();
+                const { isSubscriber } = window.passJSON;
+              });
+              callback();
+            } catch (e) {
+              console.error(e);
+            }
+          };
+          body.appendChild(passScript);
+        }
+
+        function download(url, responseType){
+          const xhr = new XMLHttpRequest();
+          xhr.open("GET",url,true);
+          xhr.responseType = responseType;
+          xhr.send();
+          return new Promise((resolve, reject) => {
+            xhr.onload = (evt) => {
+              resolve(evt.target.response);
+            }
+          })
+        }
+
+        function getLicence(challenge, url){
+          const url = content.url;
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", url, true);
+          xhr.setRequestHeader("xx-operator","pc");
+          xhr.setRequestHeader("xx-service","mycanal");
+          xhr.setRequestHeader("xx-domain", "json");
+          xhr.setRequestHeader("xx-profile-id","0");
+          xhr.setRequestHeader("xx-device","pc ebf5f9a1-9a02-461d-8723-abb962396981");
+          xhr.setRequestHeader("authorization", "PASS Token=\"10501u26H1u7fqZd8kP_6PCcHXu6g2UcKzNGkNWV88IUtdOUQHkKZiAHTsNzfmtV35r2ebejK99gpXjX-rhjS37msUK-NCSpeq6vliwGk4BHskbSQSCP-N9qQ8iByNo1A4Jq5uhvxpio4nzqM-yDFSQiH9Q1n3yPJvvFcCDKhjN3wSVjHlROK1R3QBhNuY6QxpeBI944EEWWm5thi_WFpxXTFlKB_XhYx0eG2h84K4o3gmAKQzElsMAQPyDqBYCiJjZjCaqmHxVFCo56KpgRbKyNbhqEnnSLRiumTUG96OSykt4GSY2s3dNCOvqM9-PN8tVyakjDSuzXvHySON839qGyZNFRrLHgvpfmZSTygXZXpn-wZLTXLyaRrMW92GzpQUvaX79S2eXDkz_p1x4wMQXOdWxdET6bMztEIBxFXeyrxahVa2sZcRvm9GjMZ7Edkpv3wrCMjraKPEpe4lNBhn7zhz5xN6ZFkIhd5VQTlTqjHgwn6-epe3Ni5C9AfN2C-8LaEhw0cEJ8fJHb4pwwgzWm4hv3MSTtqJS2JPdplz1cKYTbNprx1XQukqu1B4nuYiIVS8rG52dMLDa6P75DYKjOcbyqdJXUEK5fdnGqgWgROyUch5nTU3VZvheyVcSEWtNzX_vLfbYC46UpBtloj8IaTV6Xz0LRhaWeyE7AnkV2Uox3mvPcI258AAfGd1MofP5s8fsPAFdEoYCD_79om40zE6NnTPdfaUGCQm71oD0LQPxpO_fIpCEBM_AfQbEPPP34M\"");
+          xhr.send(challenge);
+          return new Promise((resolve, reject) => {
+            xhr.onload = (evt) => {
+              const licence = evt.target.response;
+              resolve(licence);
+            }
+          })
+
+        }
+
+        ///////////////// Parse BXF /////////////////////////////////////////
+
+        // A PARTIR DE MAINTENANT, ASYNCHRONE
+        function callback() {
+          return download("http://127.0.0.1:8082/family.xml", "text").then((bxfString) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST","http://127.0.0.1:3000/playlist", true);
+          xhr.send(bxfString);
+          xhr.responseType = "json";
+          xhr.onload = (evt) => {
+            const parsedBXF = evt.target.response;
+
+            ///////////////////////// GET PLAYSET FROM HAPI ///////////////////////////////
+
+            const mapped = parsedBXF.contents.map((content) => {
+              if(content.video[0]){
+                const { affaire, pgrm, type } = content.video[0];
+                if(type === "CIN"){
+                const HAPIUrl = "http://f4w5-partner.canal-plus.io/catalog/unit/ANT_" + affaire + "_" + pgrm;
+                const xhr = new XMLHttpRequest();
+                xhr.open("GET", HAPIUrl, false);
+                xhr.setRequestHeader("xx-operator","pc");
+                xhr.setRequestHeader("xx-service","mycanal");
+                xhr.setRequestHeader("xx-follow-links","playsets,contents");
+                xhr.setRequestHeader("xx-suboffers","RALD_OCS, CP_ALD_SER,CP_ALD");
+                xhr.setRequestHeader("xx-domain", "json");
+                xhr.send();
+                const status = xhr.status;
+                if(status <= 300 && 200 <= status){
+                  const result = JSON.parse(xhr.response);
+                  if(result.playsets){
+                    const widevinePlayset = result.playsets.data.reduce((acc, val) => {
+                      if(val.drmType === "DRM Widevine"){
+                        return val;
+                      }
+                      return acc;
+                    }, undefined);
+
+                    ///////////////// RECUPERER URL MANIFEST + LICENCE ////////////////
+                    const xhr = new XMLHttpRequest();
+                    const VIEWUrl = "https://f4w5-partner.canal-plus.io/conso/view";
+                    xhr.open("PUT", VIEWUrl, false);
+                    xhr.setRequestHeader("xx-operator","pc");
+                    xhr.setRequestHeader("authorization", "PASS Token=\"10501u26H1u7fqZd8kP_6PCcHXu6g2UcKzNGkNWV88IUtdOUQHkKZiAHTsNzfmtV35r2ebejK99gpXjX-rhjS37msUK-NCSpeq6vliwGk4BHskbSQSCP-N9qQ8iByNo1A4Jq5uhvxpio4nzqM-yDFSQiH9Q1n3yPJvvFcCDKhjN3wSVjHlROK1R3QBhNuY6QxpeBI944EEWWm5thi_WFpxXTFlKB_XhYx0eG2h84K4o3gmAKQzElsMAQPyDqBYCiJjZjCaqmHxVFCo56KpgRbKyNbhqEnnSLRiumTUG96OSykt4GSY2s3dNCOvqM9-PN8tVyakjDSuzXvHySON839qGyZNFRrLHgvpfmZSTygXZXpn-wZLTXLyaRrMW92GzpQUvaX79S2eXDkz_p1x4wMQXOdWxdET6bMztEIBxFXeyrxahVa2sZcRvm9GjMZ7Edkpv3wrCMjraKPEpe4lNBhn7zhz5xN6ZFkIhd5VQTlTqjHgwn6-epe3Ni5C9AfN2C-8LaEhw0cEJ8fJHb4pwwgzWm4hv3MSTtqJS2JPdplz1cKYTbNprx1XQukqu1B4nuYiIVS8rG52dMLDa6P75DYKjOcbyqdJXUEK5fdnGqgWgROyUch5nTU3VZvheyVcSEWtNzX_vLfbYC46UpBtloj8IaTV6Xz0LRhaWeyE7AnkV2Uox3mvPcI258AAfGd1MofP5s8fsPAFdEoYCD_79om40zE6NnTPdfaUGCQm71oD0LQPxpO_fIpCEBM_AfQbEPPP34M\"");
+                    xhr.setRequestHeader("xx-service","mycanal");
+                    xhr.setRequestHeader("xx-follow-links","medias");
+                    xhr.setRequestHeader("xx-distmodes", "tvod,catchup,svod,live,postvod");
+                    xhr.setRequestHeader("xx-suboffers","RALD_OCS, CP_ALD_SER,CP_ALD");
+                    xhr.setRequestHeader("xx-domain", "json");
+                    xhr.setRequestHeader("xx-profile-id","0");
+                    xhr.setRequestHeader("xx-device","pc ebf5f9a1-9a02-461d-8723-abb962396981");
+                    xhr.setRequestHeader("Content-Type","application/json; charset=utf-8");
+                    xhr.send(JSON.stringify(widevinePlayset));
+                    const status = xhr.status;
+                    if(status <= 300 && 200 <= status){
+                      const result = JSON.parse(xhr.response);
+                      const data = result.medias.data;
+                      const licence = result["@licence"];
+                      const manifestUrl = data[data.VM ? "VM": "VF"][0].files[0].distribURL;
+                      const video = content.video[0];
+                      video.url = manifestUrl;
+                      video.licenceUrl = licence;
+                      content.video[0] = video;
+                      return content;
+                    }
+                  }
+                }
+                }
+              }
+              return content;
+            });
+            const filtered = mapped
+              .filter((content) => content.video[0].url)
+              .map((data) => {
+                const content = data.video[0];
+                return {
+                  startTime: content.startTime,
+                  endTime: content.endTime,
+                  url: content.url,
+                  licenceUrl: content.licenceUrl,
+                };
+              });
+            
+            const final = { contents : filtered };
+            debugger;
+          }
+        });
+        }
+
+        passInit(callback);
+
         const player = new window.RxPlayer({
           videoElement: document.getElementById("video")
         });
