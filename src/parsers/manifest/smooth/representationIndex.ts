@@ -331,14 +331,13 @@ export default class SmoothRepresentationIndex
         time: 0,
         timescale: index.timescale,
         privateInfos: {
-          "smooth-init": {
+            manifestType: "smooth",
             bitsPerSample: this._bitsPerSample,
             channels: this._channels,
             codecPrivateData: this._codecPrivateData,
             packetSize: this._packetSize,
             samplingRate: this._samplingRate,
             protection: this._protection,
-          },
         },
       };
     }
@@ -438,9 +437,9 @@ export default class SmoothRepresentationIndex
         return false;
       }
 
-      const repeat = lastSegmentInTimeline.r || 1;
+      const repeat = lastSegmentInTimeline.r || 0;
       const endOfLastSegment =
-        lastSegmentInTimeline.ts + repeat * lastSegmentInTimeline.d;
+        lastSegmentInTimeline.ts + (repeat + 1) * lastSegmentInTimeline.d;
 
       if (to * timescale < endOfLastSegment) {
         return false;
