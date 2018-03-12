@@ -379,7 +379,6 @@ function createOrReuseSession(
     log.debug("eme: reuse loaded session", loadedSession.sessionId);
     return Observable.of(createSessionEvent("reuse-session", loadedSession));
   } else {
-
     return createSession(mediaKeysInfos.mediaKeys, "temporary", initData)
       .mergeMap((session) => {
 

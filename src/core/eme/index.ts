@@ -24,9 +24,12 @@ import {
 import { onEncrypted$ } from "../../compat/events";
 import { EncryptedMediaError } from "../../errors";
 import assert from "../../utils/assert";
+import auditMap from "../../utils/auditMap";
 import castToObservable from "../../utils/castToObservable";
 import log from "../../utils/log";
 import noop from "../../utils/noop";
+import hashInitData from "./sessions_set/hash_init_data";
+
 import {
   $loadedSessions,
   $storedSessions,
@@ -44,7 +47,6 @@ import {
   IMediaKeysInfos,
   ISessionEvent,
 } from "./session";
-import hashInitData from "./sessions_set/hash_init_data";
 import setMediaKeysObs, { disposeMediaKeys } from "./set_media_keys";
 
 // Persisted singleton instance of MediaKeys. We do not allow multiple
@@ -160,29 +162,42 @@ function createEME(
       return evtHash === prevHash;
     });
 
-  return Observable.combineLatest(
-    encrypted$,
-    createMediaKeys(keySystems, errorStream)
-  )
-  .mergeMap(([encryptedEvent, mediaKeysInfos], i) => {
-    log.info("eme: encrypted event", encryptedEvent);
+  // Create or get cached session.
+  return auditMap(
+    Observable.combineLatest(
+      encrypted$,
+      createMediaKeys(keySystems, errorStream)
+    ),
+    ([encryptedEvent, mediaKeysInfos]) => {
+      log.info("eme: encrypted event", encryptedEvent);
 
-    if (encryptedEvent.initData == null) {
-      const error = new Error("no init data found on media encrypted event.");
-      throw new EncryptedMediaError("INVALID_ENCRYPTED_EVENT", error, true);
+      if (encryptedEvent.initData == null) {
+        const error = new Error("no init data found on media encrypted event.");
+        throw new EncryptedMediaError("INVALID_ENCRYPTED_EVENT", error, true);
+      }
+
+      const events$ = createOrReuseSessionWithRetry(
+        encryptedEvent,
+        mediaKeysInfos
+      );
+
+      return Observable.combineLatest(
+        events$,
+        Observable.of(encryptedEvent),
+        Observable.of(mediaKeysInfos)
+      );
     }
+  // Handle events from created session
+  ).mergeMap((
+      [event, encryptedEvent, mediaKeysInfos]:
+        [ISessionEvent, MediaEncryptedEvent, IMediaKeysInfos],
+      i: number
+    ) => {
+      const setMediaKeys$ = i === 0 ?
+        setMediaKeysObs(mediaKeysInfos, video, instanceInfos) :
+        Observable.empty();
 
-    const setMediaKeys$ = i === 0 ?
-      setMediaKeysObs(mediaKeysInfos, video, instanceInfos) :
-      Observable.empty();
-
-    // Create or get cached session.
-    const session$ = createOrReuseSessionWithRetry(
-      encryptedEvent,
-      mediaKeysInfos
-    ).switchMap((event: ISessionEvent) => {
-      // Handle events from created session
-      return event.value.name === "reuse-session" ?
+      const sessionEvents$ = event.value.name === "reuse-session" ?
         Observable.of(event) :
         handleSessionEvents(
           event.value.session,
@@ -190,13 +205,12 @@ function createEME(
           new Uint8Array(encryptedEvent.initData as ArrayBuffer),
           errorStream
         ).startWith(event);
-      });
 
-    return Observable.merge(
-      setMediaKeys$.ignoreElements() as Observable<never>,
-      session$
-    );
-  });
+      return Observable.merge(
+        setMediaKeys$.ignoreElements() as Observable<never>,
+        sessionEvents$
+      );
+    });
 }
 
 /**
