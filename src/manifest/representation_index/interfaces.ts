@@ -41,7 +41,7 @@ export interface ISegment {
   time : number; // Time of beginning for the segment
   timescale : number; // Timescale to convert time and duration into seconds
 
-  media? : string; // optional string used to link to the media
+  media : string; // optional string used to link to the media
   duration? : number; // duration of the segment
   indexRange? : [number, number]; // If set, the corresponding byte Range in the
                                   // downloaded Segment will contain an index

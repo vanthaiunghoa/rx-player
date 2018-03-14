@@ -230,20 +230,27 @@ export default function(
             const offset = (period.start || 0) *
               (init ? (init.timescale || segment.timescale) :  segment.timescale);
 
-            if(segmentData !== undefined){
+            if (segmentData !== undefined) {
               const responseData = segmentData instanceof Uint8Array ?
                 segmentData :
                 new Uint8Array(segmentData);
 
-              segmentPatchedData = new BoxPatcher(
-                responseData,
-                false,
-                false,
-                offset
-              ).filter();
-            }
-            if(segmentInfos){
-              segmentInfos.time += offset;
+              if (
+                segment.privateInfos &&
+                segment.privateInfos.manifestType === "smooth"
+              ) {
+                segmentPatchedData = responseData;
+              } else {
+                segmentPatchedData = new BoxPatcher(
+                  responseData,
+                  false,
+                  false,
+                  offset
+                ).filter();
+                if (segmentInfos) {
+                  segmentInfos.time += offset;
+                }
+              }
             }
             return { segmentData: segmentPatchedData, segmentInfos };
           });
@@ -267,7 +274,7 @@ export default function(
         const transportType = getTypeFromPrivateInfos(args.segment.privateInfos);
         const transport = transports[transportType];
         return transport.text.parser(args).map((_args) => {
-          if(_args.segmentData !== undefined){
+          if (_args.segmentData !== undefined) {
             _args.segmentData.timeOffset = args.period.start;
           }
           return { segmentData: _args.segmentData, segmentInfos: _args.segmentInfos };
@@ -294,7 +301,7 @@ export default function(
         const transport = transports[transportType];
 
         return transport.image.parser(args).map((_args) => {
-          if(_args.segmentData !== undefined){
+          if (_args.segmentData !== undefined) {
             _args.segmentData.timeOffset = args.period.start;
           }
           return _args;

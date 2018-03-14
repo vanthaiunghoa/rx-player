@@ -18,6 +18,10 @@ import { Observable } from "rxjs/Observable";
 import { Adaptation } from "../../manifest";
 import parseBif from "../../parsers/images/bif";
 import createSmoothManifestParser from "../../parsers/manifest/smooth";
+import {
+  replaceRepresentationSmoothTokens,
+  replaceSegmentSmoothTokens
+} from "../../parsers/manifest/smooth/helpers";
 import { IKeySystem } from "../../parsers/manifest/types";
 import assert from "../../utils/assert";
 import request from "../../utils/request";
@@ -45,7 +49,6 @@ import extractTimingsInfos from "./isobmff_timings_infos";
 import mp4Utils from "./mp4";
 import generateSegmentLoader from "./segment_loader";
 import {
-  buildSegmentURL,
   extractISML,
   extractToken,
   replaceToken,
@@ -193,7 +196,6 @@ export default function(
         extractTimingsInfos(responseBuffer, segment, manifest.isLive);
 
       const segmentData = patchSegment(responseBuffer, segmentInfos.time);
-
       if (nextSegments) {
         addNextSegments(adaptation, nextSegments, segmentInfos);
       }
@@ -212,8 +214,9 @@ export default function(
       }
 
       const { mimeType } = representation;
-      const base = resolveURL(representation.baseURL);
-      const url = buildSegmentURL(base, representation, segment);
+      const baseURL = resolveURL(segment.media);
+      const intermediateURL = replaceRepresentationSmoothTokens(baseURL, representation);
+      const url = replaceSegmentSmoothTokens(intermediateURL, segment.time);
 
       return request({
         url,
@@ -350,8 +353,10 @@ export default function(
       if (segment.isInit) {
         return Observable.empty();
       } else {
-        const baseURL = resolveURL(representation.baseURL);
-        const url = buildSegmentURL(baseURL, representation, segment);
+        const baseURL = resolveURL(segment.media);
+        const intermediateURL =
+          replaceRepresentationSmoothTokens(baseURL, representation);
+        const url = replaceSegmentSmoothTokens(intermediateURL, segment.time);
 
         return request({
           url,

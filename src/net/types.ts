@@ -317,8 +317,6 @@ export interface IParsedContentProtection {
 }
 
 export interface IParsedRepresentation {
-  // required
-  baseURL : string;
   bitrate : number;
   index : IRepresentationIndex;
   id: string;

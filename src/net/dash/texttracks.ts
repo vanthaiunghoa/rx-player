@@ -19,7 +19,6 @@ import { Observable } from "rxjs/Observable";
 
 import assert from "../../utils/assert";
 import { stringFromUTF8 } from "../../utils/strings";
-import { resolveURL } from "../../utils/url";
 
 import {
   getMDAT,
@@ -32,8 +31,7 @@ import getISOBMFFTimingInfos from "./isobmff_timing_infos";
 import {
   addNextSegments,
   byteRange,
-  isMP4EmbeddedTrack,
-  replaceTokens,
+  isMP4EmbeddedTrack
 } from "./utils";
 
 import {
@@ -74,22 +72,9 @@ function TextTrackLoader(
 
   // init segment without initialization media/range/indexRange:
   // we do nothing on the network
-  if (isInit && !(media || range || indexRange)) {
+  if (isInit && !(range || indexRange)) {
     return Observable.empty();
   }
-
-  /**
-   * filename
-   * @type string
-   */
-  const path = media ?
-    replaceTokens(media, segment, representation) : "";
-
-  /**
-   * Complete path of the segment.
-   * @type string
-   */
-  const mediaUrl = resolveURL(representation.baseURL, path);
 
   // fire a single time contiguous init and index ranges.
   // TODO Find a solution for indicating that special case to the parser
@@ -98,7 +83,7 @@ function TextTrackLoader(
     range[1] === indexRange[0] - 1
   ) {
     return request({
-      url: mediaUrl,
+      url: media,
       responseType,
       headers: {
         Range: byteRange([range[0], indexRange[1]]),
@@ -111,7 +96,7 @@ function TextTrackLoader(
    * @type Observable.<Object>
    */
   const mediaOrInitRequest = request({
-    url: mediaUrl,
+    url: media,
     responseType,
     headers: range ? {
       Range: byteRange(range),
@@ -124,7 +109,7 @@ function TextTrackLoader(
   // TODO Find a solution for calling only one time the parser
   if (indexRange) {
     const indexRequest = request({
-      url: mediaUrl,
+      url: media,
       responseType,
       headers: {
         Range: byteRange(indexRange),

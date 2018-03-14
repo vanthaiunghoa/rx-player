@@ -16,13 +16,8 @@
 
 import { Observable } from "rxjs/Observable";
 
-import { resolveURL } from "../../utils/url";
-
 import request from "../../utils/request";
-import {
-  byteRange,
-  replaceTokens,
-} from "./utils";
+import { byteRange } from "./utils";
 
 import {
   CustomSegmentLoader,
@@ -107,14 +102,9 @@ const segmentPreLoader = (customSegmentLoader? : CustomSegmentLoader) => ({
 
   // init segment without initialization media/range/indexRange:
   // we do nothing on the network
-  if (isInit && !(media || range || indexRange)) {
+  if (isInit && !(range || indexRange)) {
     return Observable.empty();
   }
-
-  // construct url for the segment
-  const path = media ? replaceTokens(media, segment, representation) : "";
-  const url = resolveURL(representation.baseURL, path);
-
   const args = {
     adaptation,
     manifest,
@@ -122,7 +112,7 @@ const segmentPreLoader = (customSegmentLoader? : CustomSegmentLoader) => ({
     representation,
     segment,
     transport: "dash",
-    url,
+    url: media,
   };
 
   if (!customSegmentLoader) {

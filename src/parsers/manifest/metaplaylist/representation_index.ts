@@ -38,7 +38,7 @@ export default class MetaRepresentationIndex implements IRepresentationIndex{
       timeOffset: number,
       transport: "dash"|"smooth",
       contentEnd: number
-  ){
+  ) {
     this._wrappedIndex = index;
     this._timeOffset = timeOffset;
     this._transport = transport;
@@ -62,12 +62,13 @@ export default class MetaRepresentationIndex implements IRepresentationIndex{
     ).map((segment) => {
       segment.privateInfos = segment.privateInfos || { codecPrivateData: "" };
       segment.privateInfos.manifestType = this._transport;
+      segment.time += this._timeOffset * segment.timescale;
       return segment;
     });
   }
 
   public shouldRefresh(_: ISegment[], __ : number, to : number) : boolean {
-    if(to > this._contentEnd){
+    if (to > this._contentEnd) {
       return true;
     }
     return false;
