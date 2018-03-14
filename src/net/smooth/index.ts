@@ -22,20 +22,18 @@ import {
   replaceRepresentationSmoothTokens,
   replaceSegmentSmoothTokens
 } from "../../parsers/manifest/smooth/helpers";
-import { IKeySystem } from "../../parsers/manifest/types";
 import assert from "../../utils/assert";
 import request from "../../utils/request";
 import { stringFromUTF8 } from "../../utils/strings";
 import { resolveURL } from "../../utils/url";
 import {
-  CustomManifestLoader,
-  CustomSegmentLoader,
   ILoaderObservable,
   ImageParserObservable,
   IManifestLoaderArguments,
   IManifestParserArguments,
   IManifestParserObservable,
   INextSegmentsInfos,
+  IParserOptions,
   IResolverObservable,
   ISegmentLoaderArguments,
   ISegmentParserArguments,
@@ -54,15 +52,6 @@ import {
   replaceToken,
   resolveManifest,
 } from "./utils";
-
-interface IHSSParserOptions {
-  segmentLoader? : CustomSegmentLoader;
-  manifestLoader? : CustomManifestLoader;
-  suggestedPresentationDelay? : number;
-  referenceDateTime? : number;
-  minRepresentationBitrate? : number;
-  keySystems? : (hex? : Uint8Array) => IKeySystem[];
-}
 
 const {
   patchSegment,
@@ -89,7 +78,7 @@ function addNextSegments(
 }
 
 export default function(
-  options : IHSSParserOptions = {}
+  options : IParserOptions = {}
 ) : ITransportPipelines {
   const smoothManifestParser = createSmoothManifestParser(options);
   const segmentLoader = generateSegmentLoader(options.segmentLoader);
@@ -189,12 +178,12 @@ export default function(
           segmentInfos: initSegmentInfos,
         });
       }
-      const responseBuffer = response.responseData instanceof Uint8Array
-      ? response.responseData
-       : new Uint8Array(response.responseData);
+      const responseBuffer = response.responseData instanceof Uint8Array ?
+        response.responseData :
+        new Uint8Array(response.responseData);
+
       const { nextSegments, segmentInfos } =
         extractTimingsInfos(responseBuffer, segment, manifest.isLive);
-
       const segmentData = patchSegment(responseBuffer, segmentInfos.time);
       if (nextSegments) {
         addNextSegments(adaptation, nextSegments, segmentInfos);
@@ -349,7 +338,7 @@ export default function(
   const imageTrackPipeline = {
     loader(
       { segment, representation } : ISegmentLoaderArguments
-    ) : ILoaderObservable<ArrayBuffer|Uint8Array> {
+    ) : ILoaderObservable<ArrayBuffer> {
       if (segment.isInit) {
         return Observable.empty();
       } else {
@@ -366,7 +355,7 @@ export default function(
     },
 
     parser(
-      { response } : ISegmentParserArguments<ArrayBuffer|Uint8Array>
+      { response } : ISegmentParserArguments<Uint8Array|ArrayBuffer>
     ) : ImageParserObservable {
       const responseData = response.responseData;
       const blob = new Uint8Array(responseData);

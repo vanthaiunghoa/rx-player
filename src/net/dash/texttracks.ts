@@ -55,7 +55,7 @@ import {
  */
 function TextTrackLoader(
   { segment, representation } : ISegmentLoaderArguments
-) : ILoaderObservable<ArrayBuffer|string|Uint8Array> {
+) : ILoaderObservable<ArrayBuffer|string> {
   const {
     media,
     range,
@@ -144,7 +144,7 @@ function TextTrackParser({
   adaptation,
   representation,
   init,
-} : ISegmentParserArguments<ArrayBuffer|string|Uint8Array>
+} : ISegmentParserArguments<Uint8Array|ArrayBuffer|string>
 ) : TextTrackParserObservable {
   const { language } = adaptation;
   const { isInit, indexRange } = segment;
