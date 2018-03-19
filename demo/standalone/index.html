@@ -9,7 +9,7 @@
       <video id="video" width="1600px" height="900px"></video>
       <script type="text/javascript" src="./lib.js" charset="utf-8"></script>
       <script charset="utf-8">
-        const token = "10501u26H1u7fqZd8kP_6PCcHXu6g2UcKzNGkNWV88IUtdOUQHkKZiAHTsNzfmtV35r2ebejK99gpXjX-rhjS37msUK-NCSpeq6vliwGk4BHskbSQSCP-N9qQ8iByNo1A4Jq5uhvxpio4nzqM-yDFSQiH9Q1n3yPJvvFcCDKhjN3wSVjHlROK1R3QBhNuY6QxpeBI944EEWWm5thi_WFpxXTFlKB_XhYx0eG2h84K4o3gmAKQzElsMAQPyDqBYCiJjZjCaqmHxVFCo56KpgRbKyNbhqEnnSLRiumTUG96OSykt4GSY2s3dNCOvqM9-PN8tVyakjDSuzXvHySON839qGyZNFRrLHgvpfmZSTygXZXpn-wZLTXLyaRrMW92GzpQUvaX79S2eXDkz_p1x4wMQXOdWxdET6bMztEIBxFXeyrxahVa2sZcRvm9GjMZ7Edkpv3wrCMjraKPEpe4lNBhn7zhz5xN6ZFkIhd5VQTlTqjHgwn6-epe3Ni5C9AfN2C-8LaEhw0cEJ8fJHb4pwwgzWm4hv3MSTtqJS2JPdplz1cKYTbNprx1XQukqu1B4nuYiIVS8rG52dMLDa6P75DYKjOcbyqdJXUEK5fdnGqgWgROyUdAo7q15LRqZp1vNPFFk0J6gPBIw2PDZUwc4xKrmBo8FtNDboYNL4z9CtUvZi34H6zlLux9zY9K5-Ggvx9OBFMtGhQuo3P7p71Cr0XOL7yBJEKskrTcjF1ybC-GbhxfPf1w6b-da4Xnxn2oRslhnnYA";
+        const preprod_token = "10501u26H1u7fqZd8kP_6PCcHXu6g2UcKzNGkNWV88IUtdOUQHkKZiAHTsNzfmtV35r2ebejK99gpXjX-rhjS37msUK-NCSpeq6vliwGk4BHskbSQSCP-N9qQ8iByNo1A4Jq5uhvxpio4nzqM-yDFSQiH9Q1n3yPJvvFcCDKhjN3wSVjHlROK1R3QBhNuY6QxpeBI944EEWWm5thi_WFpxXTFlKB_XhYx0eG2h84K4o3gmAKQzElsMAQPyDqBYCiJjZjCaqmHxVFCo56KpgRbKyNbhqEnnSLRiumTUG96OSykt4EASLJPV6RIeb_3bJlXPOyUWPD7gY1-w_nbhu7G7Jzv4ni2McQDki7l4P7mmy_63ycukYskpb_lu_uwcW-Um3qtapPO5kPH8a5If4_phUo1lj9_lPsEaAhxweXGfiWGUvNJQ-_M-Y5JW3XRKc_BtgilSaI2qOzvAvEttXL1XF5io2ycUHQfZXqXzvEq1GXAK74Vr3V1dpddhqmNfQlxupK5Lej6asrHvic-xvxpoIVXl3KW9oRNjTHgWpjP5_b-LUgQEddOY52d-53Lt81njLu5dSpvbjxH2pFu4dRdaav2Vf4fRzNtxXJ3MUVzIk4OrNdjgNAB4chXppcmLUsx2_uA64Z9A8wnMzGvTcflhFds0bnvWCRJGAHceSdMZloXzA61WlkEk_T53qk2pjLXRmGMed7MFrESPEWarjnigEJpA_kP_jjNekKfFutjYYzxd4tHqNCGcFBM2mJqz3hd2beH";
         function passInit(callback) {
           const body = document.getElementsByTagName('body')[0];
           const passScript = document.createElement('script');
@@ -86,23 +86,78 @@
                     }, undefined);
 
                     ///////////////// RECUPERER URL MANIFEST + LICENCE ////////////////
-                    const xhr = new XMLHttpRequest();
+                    const _xhr = new XMLHttpRequest();
                     const VIEWUrl = "http://f4w5-partner.canal-plus.io/conso/view";
-                    xhr.open("PUT", VIEWUrl, false);
-                    xhr.setRequestHeader("xx-operator","pc");
-                    xhr.setRequestHeader("authorization", "PASS Token=\""+token+"\"");
-                    xhr.setRequestHeader("xx-service","mycanal");
-                    xhr.setRequestHeader("xx-follow-links","medias");
-                    xhr.setRequestHeader("xx-distmodes", "tvod,catchup,svod,live,postvod");
-                    xhr.setRequestHeader("xx-suboffers","RALD_OCS, CP_ALD_SER,CP_ALD");
-                    xhr.setRequestHeader("xx-domain", "json");
-                    xhr.setRequestHeader("xx-profile-id","0");
-                    xhr.setRequestHeader("xx-device","pc ebf5f9a1-9a02-461d-8723-abb962396981");
-                    xhr.setRequestHeader("Content-Type","application/json; charset=utf-8");
-                    xhr.send(JSON.stringify(widevinePlayset));
-                    const status = xhr.status;
+                    _xhr.open("PUT", VIEWUrl, false);
+                    _xhr.setRequestHeader("xx-operator","pc");
+                    _xhr.setRequestHeader("authorization", "PASS Token=\""+preprod_token+"\"");
+                    _xhr.setRequestHeader("xx-service","mycanal");
+                    _xhr.setRequestHeader("xx-follow-links","medias");
+                    _xhr.setRequestHeader("xx-distmodes", "tvod,catchup,svod,live,postvod");
+                    _xhr.setRequestHeader("xx-suboffers","RALD_OCS, CP_ALD_SER,CP_ALD");
+                    _xhr.setRequestHeader("xx-domain", "json");
+                    _xhr.setRequestHeader("xx-profile-id","0");
+                    _xhr.setRequestHeader("xx-device","pc ebf5f9a1-9a02-461d-8723-abb962396981");
+                    _xhr.setRequestHeader("Content-Type","application/json; charset=utf-8");
+                    _xhr.send(JSON.stringify(widevinePlayset));
+                    const status = _xhr.status;
                     if(status <= 300 && 200 <= status){
-                      const result = JSON.parse(xhr.response);
+                      const result = JSON.parse(_xhr.response);
+                      const data = result.medias.data;
+                      const licence = result["@licence"];
+                      const manifestUrl = data[data.VM ? "VM": "VF"][0].files[0].distribURL;
+                      const video = content.video[0];
+                      video.url = manifestUrl;
+                      video.licenceUrl = licence;
+                      content.video[0] = video;
+                      return content;
+                    }
+                  }
+                  // NO PLAYSET IN CATALOG UNIT, WE SEARCH IN CONSO/PLAYLIST
+                  const id = result.id;
+                  const playsetsUrl = "http://f4w5-partner.canal-plus.io/conso/playset?contentId="+id;  
+                  const __xhr = new XMLHttpRequest();
+                  __xhr.open("GET", playsetsUrl, false);
+                  __xhr.setRequestHeader("xx-operator","pc");
+                  __xhr.setRequestHeader("authorization", "PASS Token=\""+preprod_token+"\"");
+                  __xhr.setRequestHeader("xx-service","mycanal");
+                  // xhr.setRequestHeader("xx-follow-links","medias");
+                  // xhr.setRequestHeader("xx-distmodes", "tvod,catchup,svod,live,postvod");
+                  __xhr.setRequestHeader("xx-suboffers","RALD_OCS, CP_ALD_SER,CP_ALD");
+                  __xhr.setRequestHeader("xx-domain", "json");
+                  __xhr.setRequestHeader("xx-profile-id","0");
+                  __xhr.setRequestHeader("xx-device","pc ebf5f9a1-9a02-461d-8723-abb962396981");
+                  __xhr.setRequestHeader("Content-Type","application/json; charset=utf-8");
+                  __xhr.send();
+                  const status = __xhr.status;
+                  if(status <= 300 && 200 <= status){
+                      const result = JSON.parse(_xhr.response);
+                      const playsets = result.available;
+                      const widevinePlayset = playsets.reduce((acc, val) => {
+                      if(val.drmType === "DRM Widevine"){
+                        return val;
+                      }
+                      return acc;
+                    }, undefined);
+
+                   ///////////////// RECUPERER URL MANIFEST + LICENCE ////////////////
+                    const ___xhr = new XMLHttpRequest();
+                    const VIEWUrl = "http://f4w5-partner.canal-plus.io/conso/view";
+                    ___xhr.open("PUT", VIEWUrl, false);
+                    ___xhr.setRequestHeader("xx-operator","pc");
+                    ___xhr.setRequestHeader("authorization", "PASS Token=\""+preprod_token+"\"");
+                    ___xhr.setRequestHeader("xx-service","mycanal");
+                    ___xhr.setRequestHeader("xx-follow-links","medias");
+                    ___xhr.setRequestHeader("xx-distmodes", "tvod,catchup,svod,live,postvod");
+                    ___xhr.setRequestHeader("xx-suboffers","RALD_OCS, CP_ALD_SER,CP_ALD");
+                    ___xhr.setRequestHeader("xx-domain", "json");
+                    ___xhr.setRequestHeader("xx-profile-id","0");
+                    ___xhr.setRequestHeader("xx-device","pc ebf5f9a1-9a02-461d-8723-abb962396981");
+                    ___xhr.setRequestHeader("Content-Type","application/json; charset=utf-8");
+                    ___xhr.send(JSON.stringify(widevinePlayset));
+                    const status = ___xhr.status;
+                    if(status <= 300 && 200 <= status){
+                      const result = JSON.parse(___xhr.response);
                       const data = result.medias.data;
                       const licence = result["@licence"];
                       const manifestUrl = data[data.VM ? "VM": "VF"][0].files[0].distribURL;
@@ -162,7 +217,7 @@
           xhr.setRequestHeader("xx-domain", "json");
           xhr.setRequestHeader("xx-profile-id","0");
           xhr.setRequestHeader("xx-device","pc ebf5f9a1-9a02-461d-8723-abb962396981");
-          xhr.setRequestHeader("authorization", "PASS Token=\""+token+"\"");
+          xhr.setRequestHeader("authorization", "PASS Token=\""+preprod_token+"\"");
           xhr.setRequestHeader("xx-api-version", "2");
           xhr.setRequestHeader("Content-type", "text/plain");
           const formatted = btoa(bytesToStr(challenge));
