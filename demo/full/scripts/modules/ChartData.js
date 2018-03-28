@@ -1,23 +1,45 @@
-export default ({ state }, { maxSize }) => {
-  const data = [];
+function addToData(data, val, maxSize) {
+  const clonedData = data.slice();
 
-  state.set({ data: data.slice() });
+  if (clonedData.length >= maxSize) {
+    clonedData.splice(0, (clonedData.length + 1) - maxSize);
+  }
+
+  clonedData.push({
+    date: Date.now(),
+    value: val,
+  });
+  return clonedData;
+}
+
+function removeFromData(data, number) {
+  const clonedData = data.slice();
+  clonedData.splice(0, number);
+  return clonedData;
+}
+
+export default function DATA_STORE({
+  maxSize = Infinity,
+  initialData = [],
+}) {
   return {
-    ADD_DATA: (val) => {
-      if (data.length >= maxSize) {
-        data.splice(0, (data.length + 1) - maxSize);
-      }
-      data.push({
-        date: Date.now(),
-        value: val,
-      });
-
-      state.set({ data: data.slice() });
+    __INITIAL_STATE__: {
+      data: addToData([], initialData, maxSize),
     },
 
-    REMOVE_DATA: (number = 1) => {
-      data.splice(0, number);
-      state.set({ data: data.slice() });
+    ADD_DATA: (state, val) => {
+      return {
+        state: {
+          data: addToData(state.data, val, maxSize),
+        },
+      };
     },
+
+    REMOVE_DATA: (state, number = 1) => {
+      return {
+        state: removeFromData(state.data, number),
+      };
+    },
+
   };
-};
+}

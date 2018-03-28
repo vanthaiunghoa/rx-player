@@ -7,17 +7,16 @@ import React from "react";
  * wish.
  *
  * The state listened to and the corresponding prop passed to your component
- * is done when calling withModuleState.
+ * is done when calling withModulesState.
  *
  * @example
  * ```js
  * import MyComponent from "./MyComponent.js";
  *
- * const MyEnhancedComponent = withModuleState({
+ * const MyEnhancedComponent = withModulesState({
+ *   // take a module's property and link it to a component's property
  *   moduleA: {
- *     name_of_the_wanted_state_in_module_A: "wanted_resulting_prop_name",
- *     stateA1: "stateA1Prop",
- *     stateA2: "stateA2Prop",
+ *     porpery_in_module_A: "resulting_prop_name",
  *   },
  *
  *   moduleB: {
@@ -29,11 +28,14 @@ import React from "react";
  *
  * ReactDOM.render(
  *   <MyEnhancedComponent
- *     moduleA={moduleA}
- *     moduleB={moduleB}
- *   />, el);
+ *     moduleA={myModuleA}
+ *     moduleB={myModuleB}
+ *     otherProp={otherValue}
+ *   />,
+ *   el
+ * );
  *
- * // in __MyComponent__, the corresponding state will be available in
+ * // in *MyComponent*, the corresponding state will be available in
  * // this.props (example: this.props.stateA1Prop). Those will be binded to the
  * // module's state, so updates will be repercuted on your module.
  *
@@ -43,93 +45,106 @@ import React from "react";
  * @param {Object} moduleState
  * @returns {Function}
  */
-const withModulesState = (modulesState) => (Comp) => {
-  const modulesProps = Object.keys(modulesState);
-  const modulesSubscriptions = {};
-  return class extends React.Component {
-    constructor(...args) {
-      super(...args);
-      this.state = {};
+function withModulesState(modulesState) {
+  /**
+   * @param {Function} Comp - The initial component
+   * returns {Function} The enhanced component
+   */
+  return (Comp) => {
+    const wantedModules = Object.keys(modulesState);
+    const modulesSubscriptions = {};
+    return class extends React.Component {
+      constructor(...args) {
+        super(...args);
+        this.state = {};
 
-      modulesProps.forEach(moduleProp => {
-        if (!this.props[moduleProp]) {
-          return;
-        }
-
-        const translations = modulesState[modulesProps];
-        const module = this.props[moduleProp];
-        const wantedProps = Object.keys(modulesState[moduleProp]);
-        wantedProps.forEach((state) => {
-          this.state[translations[state]] = module.get(state);
-        });
-      });
-    }
-
-    componentDidMount() {
-      modulesProps.forEach(moduleProp => {
-        if (!this.props[moduleProp]) {
-          return;
-        }
-
-        modulesSubscriptions[moduleProp] = [];
-
-        const translations = modulesState[modulesProps];
-        const module = this.props[moduleProp];
-        const wantedProps = Object.keys(modulesState[moduleProp]);
-        wantedProps.forEach((state) => {
-          const sub = module
-            .$get(state)
-            .subscribe(val => this.setState({
-              [translations[state]]: val,
-            }));
-
-          modulesSubscriptions[moduleProp].push(sub);
-        });
-      });
-    }
-
-    componentWillReceiveProps(nextProps) {
-      modulesProps.forEach(moduleProp => {
-        if (!nextProps[moduleProp]) {
-          if (modulesSubscriptions[moduleProp]) {
-            modulesSubscriptions[moduleProp]
-              .forEach(sub => sub.unsubscribe());
-            delete modulesSubscriptions[moduleProp];
+        wantedModules.forEach(moduleName => {
+          const module = this.props[moduleName];
+          if (!module) {
+            return;
           }
-          return;
-        }
 
-        if (!modulesSubscriptions[moduleProp]) {
-          modulesSubscriptions[moduleProp] = [];
-          const translations = modulesState[modulesProps];
-          const module = nextProps[moduleProp];
-          const wantedProps = Object.keys(modulesState[moduleProp]);
+          const stateDictionnary = modulesState[moduleName];
+          const stateNames = Object.keys(stateDictionnary);
+          stateNames.forEach((stateName) => {
+            this.state[stateDictionnary[stateName]] = module.get(stateName);
+          });
+        });
+      }
+
+      componentDidMount() {
+        wantedModules.forEach(moduleName => {
+          if (!this.props[moduleName]) {
+            return;
+          }
+
+          modulesSubscriptions[moduleName] = [];
+
+          const stateDictionnary = modulesState[moduleName];
+          const module = this.props[moduleName];
+          const wantedProps = Object.keys(modulesState[moduleName]);
           wantedProps.forEach((state) => {
             const sub = module
-              .$get(state)
-              .subscribe(val => this.setState({
-                [translations[state]]: val,
-              }));
+              .get$(state)
+              .subscribe(val => {
+                this.setState({
+                  [stateDictionnary[state]]: val,
+                });
+              });
 
-            modulesSubscriptions[moduleProp].push(sub);
+            modulesSubscriptions[moduleName].push(sub);
           });
-        }
-      });
-    }
+        });
+      }
 
-    componentWillUnmount() {
-      Object.keys(modulesSubscriptions).forEach(moduleProp => {
-        modulesSubscriptions[moduleProp]
-          .forEach(sub => sub.unsubscribe());
-        delete modulesSubscriptions[moduleProp];
-      });
-    }
+      componentDidUpdate() {
+        wantedModules.forEach(moduleName => {
+          const module = this.props[moduleName];
+          if (!module) {
+            if (modulesSubscriptions[moduleName]) {
+              modulesSubscriptions[moduleName]
+                .forEach(sub => sub.unsubscribe());
+              delete modulesSubscriptions[moduleName];
+            }
+            return;
+          }
 
-    render() {
-      const newProps = Object.assign({}, this.props, this.state);
-      return <Comp {...newProps} />;
-    }
+          if (!modulesSubscriptions[moduleName]) {
+            modulesSubscriptions[moduleName] = [];
+            const stateDictionnary = modulesState[moduleName];
+            const wantedProps = Object.keys(modulesState[moduleName]);
+            wantedProps.forEach((state) => {
+              this.setState({
+                [stateDictionnary[state]]: module.get(state),
+              });
+              const sub = module
+                .get$(state)
+                .subscribe(val => {
+                  this.setState({
+                    [stateDictionnary[state]]: val,
+                  });
+                });
+
+              modulesSubscriptions[moduleName].push(sub);
+            });
+          }
+        });
+      }
+
+      componentWillUnmount() {
+        Object.keys(modulesSubscriptions).forEach(moduleName => {
+          modulesSubscriptions[moduleName]
+            .forEach(sub => sub.unsubscribe());
+          delete modulesSubscriptions[moduleName];
+        });
+      }
+
+      render() {
+        const newProps = Object.assign({}, this.props, this.state);
+        return <Comp {...newProps} />;
+      }
+    };
   };
-};
+}
 
 export default withModulesState;

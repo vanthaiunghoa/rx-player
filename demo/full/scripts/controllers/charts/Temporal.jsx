@@ -9,16 +9,29 @@ const repeat = (str, time) => {
   return ret;
 };
 
-const filterData = (data, size) => {
-  return size < data.length ?
-    data.slice(data.length - size - 1, data.length) : data;
+const filterData = (data, duration) => {
+  const { length } = data;
+  const until = Date.now() - duration;
+  for (let i = length; i > 0; i--) {
+    if (data[i - 1].date < until) {
+      return data.slice(i, length);
+    }
+  }
+  return data;
 };
 
-class Bandwidth extends React.Component {
+/**
+ * props:
+ *   - module {Object}: the chart Module
+ *   - label {string}: the chart's label
+ *   - stepped {Boolean}: wether the Chart has stepped lines
+ * @class TemporalChart
+ */
+class TemporalChart extends React.Component {
   constructor(...args) {
     super(...args);
     this.state = {
-      size: 30,
+      duration: 60000,
     };
   }
 
@@ -28,10 +41,14 @@ class Bandwidth extends React.Component {
       return;
     }
 
-    const { module } = this.props;
-    const { size } = this.state;
+    const {
+      module,
+      label,
+      stepped,
+    } = this.props;
+    const { duration } = this.state;
 
-    const initialData = filterData(module.get("data"), size);
+    const initialData = filterData(module.get().data || [], duration);
 
     const canvas = element;
     const ctx = canvas.getContext("2d");
@@ -40,12 +57,11 @@ class Bandwidth extends React.Component {
       labels: repeat("", initialData.length),
       datasets: [
         {
-          label: "Last calculated Bandwidth, in kBps" +
-          " (might be false when cache is involved)",
-          backgroundColor: "rgba(100, 200, 200, 0.2)",
+          label,
+          backgroundColor: "rgba(200, 100, 200, 0.2)",
           fill: true,
           data: initialData.map(({ value }) => value),
-          steppedLine: true,
+          steppedLine: stepped,
         },
       ],
     };
@@ -62,18 +78,25 @@ class Bandwidth extends React.Component {
             radius: 0,
           },
         },
+        scales: {
+          xAxes: [{
+            gridLines: {
+              display: false,
+            },
+          }],
+        },
       },
     });
 
 
-    this.subscription = module.$get("data")
+    this.subscription = module.get$("data")
       .subscribe(data => this.onNewData(data));
   }
 
   onNewData(data) {
-    const { size } = this.state;
+    const { duration } = this.state;
     const [ oldDataset ] = this.chart.data.datasets;
-    const newData = filterData(data, size)
+    const newData = filterData(data, duration)
       .map(({ value }) => value);
 
     this.chart.data.datasets[0] = Object.assign({}, oldDataset, {
@@ -84,18 +107,16 @@ class Bandwidth extends React.Component {
   }
 
   componentWillUnmount() {
-    // debugger;
     if (this.subscription) {
       this.subscription.unsubscribe;
     }
-    // this.chart.destroy();
   }
 
   render() {
     return (
       <div>
         <canvas
-          className="bitrate-charts"
+          className="temporal-charts"
           height="80"
           ref={(el) => this.element = el}
         />
@@ -104,4 +125,4 @@ class Bandwidth extends React.Component {
   }
 }
 
-export default Bandwidth;
+export default TemporalChart;

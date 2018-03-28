@@ -6,11 +6,13 @@
  * application.
  */
 
-import { linkPlayerEventsToState } from "./events.js";
+import { Subject } from "rxjs/Subject";
+import linkPlayerEventsToState from "./events.js";
 
+// facilitate DEV mode
 const RxPlayer = window.RxPlayer;
 
-const PLAYER = ({ $destroy, state }, { videoElement, textTrackElement }) => {
+export default function PLAYER({ videoElement, textTrackElement }) {
   const player = new RxPlayer({
     limitVideoWidth: false,
     stopAtEnd: false,
@@ -21,54 +23,62 @@ const PLAYER = ({ $destroy, state }, { videoElement, textTrackElement }) => {
   // facilitate DEV mode
   window.player = window.rxPlayer = player;
 
-  // initial state. Written here to easily showcase it exhaustively
-  state.set({
-    audioBitrateAuto: true,
-    audioBitrate: undefined,
-    availableAudioBitrates: [],
-    availableLanguages: [],
-    availableVideoBitrates: [],
-    availableSubtitles: [],
-    bufferGap: undefined,
-    currentTime: undefined,
-    duration: undefined,
-    error: null,
-    hasEnded: false,
-    hasLoadedContent: false,
-    images: [],
-    isBuffering: false,
-    isFullscreen: player.isFullscreen(),
-    isLive: false,
-    isLoading: false,
-    isPaused: false,
-    isSeeking: false,
-    isStopped: true,
-    language: undefined,
-    loadedVideo: null,
-    minimumPosition: undefined,
-    maximumPosition: undefined,
-    speed: 0,
-    subtitle: undefined,
-    videoBitrateAuto: true,
-    videoBitrate: undefined,
-    volume: player.getVolume(),
-  });
-
-  linkPlayerEventsToState(player, state, $destroy);
-
-  // dispose of the RxPlayer when destroyed
-  $destroy.subscribe(() => player.dispose());
+  const diposeEventListeners$ = new Subject();
 
   return {
-    SET_VOLUME: (volume) => {
+
+    __INITIAL_STATE__: {
+      audioBitrate: undefined,
+      audioBitrateAuto: true,
+      availableAudioBitrates: [],
+      availableLanguages: [],
+      availableSubtitles: [],
+      availableVideoBitrates: [],
+      bufferGap: undefined,
+      currentTime: undefined,
+      duration: undefined,
+      error: null,
+      hasEnded: false,
+      hasLoadedContent: false,
+      images: [],
+      isBuffering: false,
+      isFullscreen: player.isFullscreen(),
+      isLive: false,
+      isLoading: false,
+      isPaused: false,
+      isSeeking: false,
+      isStopped: true,
+      language: undefined,
+      liveGap: undefined,
+      loadedVideo: null,
+      maximumPosition: undefined,
+      minimumPosition: undefined,
+      speed: 0,
+      subtitle: undefined,
+      videoBitrate: undefined,
+      videoBitrateAuto: true,
+      volume: player.getVolume(),
+    },
+
+    __ASYNC__(getState, updateState) {
+      linkPlayerEventsToState(player, updateState, diposeEventListeners$);
+    },
+
+    __DISPOSE__() {
+      diposeEventListeners$.next();
+      diposeEventListeners$.complete();
+      player.dispose();
+    },
+
+    SET_VOLUME(_, volume) {
       player.setVolume(volume);
     },
 
-    SET_POSITION: (position) => {
+    SET_POSITION(_, position) {
       player.setPosition(position);
     },
 
-    LOAD: (arg) => {
+    LOAD(_, arg) {
       player.loadVideo(Object.assign({
         textTrackElement,
         networkConfig: {
@@ -77,77 +87,93 @@ const PLAYER = ({ $destroy, state }, { videoElement, textTrackElement }) => {
           offlineRetry: Infinity,
         },
       }, arg));
-      state.set({ loadedVideo: arg });
+
+      return {
+        state: { loadedVideo: arg },
+      };
     },
 
-    PLAY: () => {
+    PLAY(state) {
       player.play();
 
-      const { isStopped, hasEnded } = state.get();
-      if (!isStopped && !hasEnded) {
-        state.set({ isPaused: false });
+      const { isStopped, hasEnded } = state;
+
+      if (isStopped || hasEnded) {
+        return;
       }
+
+      return {
+        state: { isPaused: false },
+      };
     },
 
-    PAUSE: () => {
+    PAUSE(state) {
       player.pause();
 
-      const { isStopped, hasEnded } = state.get();
-      if (!isStopped && !hasEnded) {
-        state.set({ isPaused: true });
+      const { isStopped, hasEnded } = state;
+      if (isStopped || hasEnded) {
+        return;
       }
+
+      return {
+        state: {
+          isPaused: true,
+        },
+      };
     },
 
-    STOP: () => {
+    STOP() {
       player.stop();
     },
 
-    SEEK: (position) => {
+    SEEK(_, position) {
       player.seekTo({ position });
     },
 
-    MUTE: () => {
+    MUTE() {
       player.mute();
     },
 
-    UNMUTE: () => {
+    UNMUTE() {
       player.unMute();
     },
 
-    SET_FULL_SCREEN: () => {
+    SET_FULL_SCREEN() {
       player.setFullscreen(true);
     },
 
-    EXIT_FULL_SCREEN: () => {
+    EXIT_FULL_SCREEN() {
       player.setFullscreen(false);
     },
 
-    SET_AUDIO_BITRATE: (bitrate) => {
+    SET_AUDIO_BITRATE(_, bitrate) {
       player.setAudioBitrate(bitrate || -1);
-      state.set({
-        audioBitrateAuto: !bitrate,
-      });
+      return {
+        state: {
+          audioBitrateAuto: !bitrate,
+        },
+      };
     },
 
-    SET_VIDEO_BITRATE: (bitrate) => {
+    SET_VIDEO_BITRATE(_, bitrate) {
       player.setVideoBitrate(bitrate || -1);
-      state.set({
-        videoBitrateAuto: !bitrate,
-      });
+      return {
+        state: {
+          videoBitrateAuto: !bitrate,
+        },
+      };
     },
 
-    SET_AUDIO_TRACK: (track) => {
+    SET_AUDIO_TRACK(_, track) {
       player.setAudioTrack(track.id);
     },
 
-    SET_SUBTITLES_TRACK: (track) => {
+    SET_SUBTITLES_TRACK(_, track) {
       player.setTextTrack(track.id);
     },
 
-    DISABLE_SUBTITLES_TRACK: () => {
+    DISABLE_SUBTITLES_TRACK() {
       player.disableTextTrack();
     },
   };
-};
-
-export default PLAYER;
+}

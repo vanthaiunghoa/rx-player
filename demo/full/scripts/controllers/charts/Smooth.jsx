@@ -20,7 +20,14 @@ const filterData = (data, duration) => {
   return data;
 };
 
-class BufferSizeChart extends React.Component {
+/**
+ * props:
+ *   - module {Object}: the chart Module
+ *   - label {string}: the chart's label
+ *   - stepped {Boolean}: wether the Chart has stepped lines
+ * @class TemporalChart
+ */
+class TemporalChart extends React.Component {
   constructor(...args) {
     super(...args);
     this.state = {
@@ -34,7 +41,11 @@ class BufferSizeChart extends React.Component {
       return;
     }
 
-    const { module } = this.props;
+    const {
+      module,
+      label,
+      stepped,
+    } = this.props;
     const { duration } = this.state;
 
     const initialData = filterData(module.get().data || [], duration);
@@ -46,10 +57,11 @@ class BufferSizeChart extends React.Component {
       labels: repeat("", initialData.length),
       datasets: [
         {
-          label: "Buffer Size, in s",
+          label,
           backgroundColor: "rgba(200, 100, 200, 0.2)",
           fill: true,
           data: initialData.map(({ value }) => value),
+          steppedLine: stepped,
         },
       ],
     };
@@ -77,7 +89,7 @@ class BufferSizeChart extends React.Component {
     });
 
 
-    this.subscription = module.$get("data")
+    this.subscription = module.get$("data")
       .subscribe(data => this.onNewData(data));
   }
 
@@ -104,7 +116,7 @@ class BufferSizeChart extends React.Component {
     return (
       <div>
         <canvas
-          className="bitrate-charts"
+          className="temporal-charts"
           height="80"
           ref={(el) => this.element = el}
         />
@@ -113,4 +125,4 @@ class BufferSizeChart extends React.Component {
   }
 }
 
-export default BufferSizeChart;
+export default TemporalChart;

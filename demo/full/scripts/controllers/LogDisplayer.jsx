@@ -1,5 +1,8 @@
 import React from "react";
 import { Subject } from "rxjs/Subject";
+import "rxjs/add/operator/filter";
+import "rxjs/add/operator/skip";
+import "rxjs/add/operator/takeUntil";
 
 const LogElement = ({ text, date }) => (
   <div
@@ -49,7 +52,7 @@ class LogDisplayer extends React.Component {
     this.destructionSubject = new Subject();
     const { player } = this.props;
 
-    player.$get("videoBitrateAuto")
+    player.get$("videoBitrateAuto")
       .skip(1) // skip initial value
       .takeUntil(this.destructionSubject)
       .subscribe(vbAuto => {
@@ -58,7 +61,7 @@ class LogDisplayer extends React.Component {
         this.addLog(text);
       });
 
-    player.$get("audioBitrateAuto")
+    player.get$("audioBitrateAuto")
       .skip(1) // skip initial value
       .takeUntil(this.destructionSubject)
       .subscribe(abAuto => {
@@ -67,7 +70,7 @@ class LogDisplayer extends React.Component {
         this.addLog(text);
       });
 
-    player.$get("videoBitrate")
+    player.get$("videoBitrate")
       .skip(1) // skip initial value
       .takeUntil(this.destructionSubject)
       .subscribe(vb => {
@@ -75,7 +78,7 @@ class LogDisplayer extends React.Component {
         this.addLog(text);
       });
 
-    player.$get("audioBitrate")
+    player.get$("audioBitrate")
       .takeUntil(this.destructionSubject)
       .skip(1) // skip initial value
       .subscribe(ab => {
@@ -83,7 +86,7 @@ class LogDisplayer extends React.Component {
         this.addLog(text);
       });
 
-    player.$get("error")
+    player.get$("error")
       .skip(1) // skip initial value
       .takeUntil(this.destructionSubject)
       .filter(x => x)
@@ -93,7 +96,7 @@ class LogDisplayer extends React.Component {
         this.addLog(text);
       });
 
-    player.$get("isLoading")
+    player.get$("isLoading")
       .skip(1) // skip initial value
       .takeUntil(this.destructionSubject)
       .filter(x => x)
@@ -102,7 +105,7 @@ class LogDisplayer extends React.Component {
         this.addLog(text);
       });
 
-    player.$get("hasLoadedContent")
+    player.get$("hasLoadedContent")
       .skip(1) // skip initial value
       .takeUntil(this.destructionSubject)
       .filter(x => x)
@@ -111,7 +114,7 @@ class LogDisplayer extends React.Component {
         this.addLog(text);
       });
 
-    player.$get("isStopped")
+    player.get$("isStopped")
       .skip(1) // skip initial value
       .takeUntil(this.destructionSubject)
       .filter(x => x)
@@ -120,7 +123,7 @@ class LogDisplayer extends React.Component {
         this.addLog(text);
       });
 
-    player.$get("hasEnded")
+    player.get$("hasEnded")
       .skip(1) // skip initial value
       .takeUntil(this.destructionSubject)
       .filter(x => x)
@@ -129,7 +132,7 @@ class LogDisplayer extends React.Component {
         this.addLog(text);
       });
 
-    player.$get("isBuffering")
+    player.get$("isBuffering")
       .skip(1) // skip initial value
       .takeUntil(this.destructionSubject)
       .subscribe((ib) => {
@@ -139,7 +142,7 @@ class LogDisplayer extends React.Component {
         this.addLog(text);
       });
 
-    player.$get("isSeeking")
+    player.get$("isSeeking")
       .skip(1) // skip initial value
       .takeUntil(this.destructionSubject)
       .subscribe((ib) => {

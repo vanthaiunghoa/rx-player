@@ -70,6 +70,9 @@ class Progressbar extends React.Component {
           <ImageTip
             className="progress-tip"
             image={image}
+
+            /* TODO adapt format */
+            mimeType="image/jpeg"
             xPosition={imageTipPosition - imageTipOffset}
           /> : null
         }

@@ -8,6 +8,7 @@ import ErrorDisplayer from "./ErrorDisplayer.jsx";
 import PlayerKnobsManager from "./PlayerKnobs.jsx";
 import LogDisplayer from "./LogDisplayer.jsx";
 import ChartsManager from "./charts/index.jsx";
+import "rxjs/add/operator/takeUntil";
 
 // time in ms while seeking/loading/buffering after which the spinner is shown
 const SPINNER_TIMEOUT = 300;
@@ -31,7 +32,7 @@ class Player extends React.Component {
     this._$destroySubject = new Subject();
     this._$destroySubject.subscribe(() => player.destroy());
 
-    player.$get("isSeeking", "isBuffering", "isLoading")
+    player.get$("isSeeking", "isBuffering", "isLoading")
       .takeUntil(this._$destroySubject)
       .subscribe(([isSeeking, isBuffering, isLoading]) => {
         if (isSeeking || isBuffering || isLoading) {

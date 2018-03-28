@@ -1,16 +1,20 @@
 import { Observable } from "rxjs/Observable";
+import "rxjs/add/observable/interval";
+import "rxjs/add/operator/distinctUntilChanged";
+import "rxjs/add/operator/map";
+import "rxjs/add/operator/takeUntil";
 
 const POSITION_UPDATES_INTERVAL = 100;
 
 /**
  * Add event listeners to the RxPlayer to update the module's state at the right
  * time.
- * Unsubscribe when $destroy emit.
+ * Unsubscribe when dispose$ emit.
  * @param {RxPlayer} player
- * @param {Subject} state
- * @param {Subject} $destroy
+ * @param {Function} updateState
+ * @param {Observable} dispose$
  */
-const linkPlayerEventsToState = (player, state, $destroy) => {
+export default function linkPlayerEventsToState(player, updateState, dispose$) {
   const fromPlayerEvent = (event) =>
     Observable.create(obs => {
       const func = (payload) => obs.next(payload);
@@ -23,8 +27,8 @@ const linkPlayerEventsToState = (player, state, $destroy) => {
 
   const linkPlayerEventToState = (event, stateItem) =>
     fromPlayerEvent(event)
-      .takeUntil($destroy)
-      .subscribe(arg => state.set({ [stateItem]: arg }));
+      .takeUntil(dispose$)
+      .subscribe(arg => updateState({ [stateItem]: arg }));
 
   linkPlayerEventToState("textTrackChange", "subtitle");
   linkPlayerEventToState("audioTrackChange", "language");
@@ -36,29 +40,31 @@ const linkPlayerEventsToState = (player, state, $destroy) => {
 
   fromPlayerEvent("imageTrackUpdate")
     .distinctUntilChanged()
-    .takeUntil($destroy)
+    .takeUntil(dispose$)
     .map(({ data }) => data)
-    .subscribe(images => state.set({ images }));
+    .subscribe(images => updateState({ images }));
 
   // use an interval for current position
   // TODO Only active for content playback
   Observable
     .interval(POSITION_UPDATES_INTERVAL)
-    .map(() => ({
-      currentTime: player.getPosition(),
-      bufferGap: player.getVideoLoadedTime() - player.getVideoPlayedTime(),
-      duration: player.getVideoDuration(),
-      minimumPosition: player.getMinimumPosition(),
-      maximumPosition: player.getMaximumPosition(),
-    }))
-    .takeUntil($destroy)
+    .map(() => {
+      return {
+        currentTime: player.getPosition(),
+        bufferGap: player.getVideoLoadedTime() - player.getVideoPlayedTime(),
+        duration: player.getVideoDuration(),
+        minimumPosition: player.getMinimumPosition(),
+        maximumPosition: player.getMaximumPosition(),
+      };
+    })
+    .takeUntil(dispose$)
     .subscribe(arg => {
-      state.set(arg);
+      updateState(arg);
     });
 
   fromPlayerEvent("playerStateChange")
     .distinctUntilChanged()
-    .takeUntil($destroy)
+    .takeUntil(dispose$)
     .subscribe((arg) => {
       const stateUpdates = {
         hasEnded: arg === "ENDED",
@@ -97,20 +103,20 @@ const linkPlayerEventsToState = (player, state, $destroy) => {
         stateUpdates.error = null;
       }
 
-      state.set(stateUpdates);
+      updateState(stateUpdates);
     });
 
   fromPlayerEvent("periodChange")
-    .takeUntil($destroy)
+    .takeUntil(dispose$)
     .subscribe(() => {
-      state.set({
+      updateState({
         availableAudioBitrates: player.getAvailableAudioBitrates(),
         availableVideoBitrates: player.getAvailableVideoBitrates(),
         availableLanguages: player.getAvailableAudioTracks(),
         availableSubtitles: player.getAvailableTextTracks(),
       });
     });
-};
+}
 
 export {
   linkPlayerEventsToState,
