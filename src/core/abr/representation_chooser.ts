@@ -308,7 +308,8 @@ export default class RepresentationChooser {
    */
   public get$(
     clock$ : Observable<IRepresentationChooserClockTick>,
-    representations : Representation[]
+    representations : Representation[],
+    bitrateForSmoothPlayback$: Observable<number>
   ): Observable<{
     bitrate: undefined|number; // bitrate estimation
     representation: Representation|null; // chosen representation
@@ -361,103 +362,112 @@ export default class RepresentationChooser {
 
       // AUTO mode
       let inStarvationMode = false;
-      return Observable.combineLatest(clock$, maxAutoBitrate$, deviceEvents$)
-        .map(([ clock, maxAutoBitrate, deviceEvents ]) => {
+      const filters$ = Observable.merge(
+        deviceEvents$,
+        bitrateForSmoothPlayback$.map((bitrate) => {
+          return { bitrate };
+        })
+      );
+      return Observable.combineLatest(
+        clock$,
+        maxAutoBitrate$,
+        filters$
+      )
+        .map(([ clock, maxAutoBitrate, filters ]) => {
+            let nextBitrate;
+            let bandwidthEstimate;
+            const { bufferGap } = clock;
 
-          let nextBitrate;
-          let bandwidthEstimate;
-          const { bufferGap } = clock;
+            // Check for starvation == not much left to play
+            if (bufferGap <= ABR_STARVATION_GAP) {
+              inStarvationMode = true;
+            } else if (inStarvationMode && bufferGap >= OUT_OF_STARVATION_GAP) {
+              inStarvationMode = false;
+            }
 
-          // Check for starvation == not much left to play
-          if (bufferGap <= ABR_STARVATION_GAP) {
-            inStarvationMode = true;
-          } else if (inStarvationMode && bufferGap >= OUT_OF_STARVATION_GAP) {
-            inStarvationMode = false;
-          }
-
-          // If in starvation mode, check if the request for the next segment
-          // takes too much time relatively to the chunk's duration.
-          // If that's the case, re-calculate the bandwidth urgently based on
-          // this single request.
-          if (inStarvationMode) {
-            const {
-              position,
-              bitrate,
-            } = clock;
-
-            const nextSegmentPosition = bufferGap + position;
-            const request = getConcernedRequest(
-              this._currentRequests, nextSegmentPosition);
-
-            if (request) {
+            // If in starvation mode, check if the request for the next segment
+            // takes too much time relatively to the chunk's duration.
+            // If that's the case, re-calculate the bandwidth urgently based on
+            // this single request.
+            if (inStarvationMode) {
               const {
-                duration: chunkDuration,
-                requestTimestamp,
-              } = request;
+                position,
+                bitrate,
+              } = clock;
 
-              const now = Date.now();
-              const requestTimeInSeconds = (now - requestTimestamp) / 1000;
-              if (
-                chunkDuration &&
-                requestTakesTime(requestTimeInSeconds, chunkDuration)
-              ) {
-                bandwidthEstimate = estimateRequestBandwidth(
-                  request, requestTimeInSeconds, bitrate);
+              const nextSegmentPosition = bufferGap + position;
+              const request = getConcernedRequest(
+                this._currentRequests, nextSegmentPosition);
 
-                if (bandwidthEstimate != null) {
-                  // Reset all estimations to zero
-                  // Note: this is weird to do this type of "global" side effect
-                  // (for this class) in an observable, not too comfortable with
-                  // that.
-                  this.resetEstimate();
-                  if (bitrate != null) {
-                    nextBitrate = Math.min(
-                      bandwidthEstimate,
-                      bitrate,
-                      maxAutoBitrate
-                    );
-                  } else {
-                    nextBitrate = Math.min(
-                      bandwidthEstimate,
-                      maxAutoBitrate
-                    );
+              if (request) {
+                const {
+                  duration: chunkDuration,
+                  requestTimestamp,
+                } = request;
+
+                const now = Date.now();
+                const requestTimeInSeconds = (now - requestTimestamp) / 1000;
+                if (
+                  chunkDuration &&
+                  requestTakesTime(requestTimeInSeconds, chunkDuration)
+                ) {
+                  bandwidthEstimate = estimateRequestBandwidth(
+                    request, requestTimeInSeconds, bitrate);
+
+                  if (bandwidthEstimate != null) {
+                    // Reset all estimations to zero
+                    // Note: this is weird to do this type of "global" side effect
+                    // (for this class) in an observable, not too comfortable with
+                    // that.
+                    this.resetEstimate();
+                    if (bitrate != null) {
+                      nextBitrate = Math.min(
+                        bandwidthEstimate,
+                        bitrate,
+                        maxAutoBitrate
+                      );
+                    } else {
+                      nextBitrate = Math.min(
+                        bandwidthEstimate,
+                        maxAutoBitrate
+                      );
+                    }
                   }
                 }
               }
             }
-          }
 
-          // if nextBitrate is not yet defined, do the normal estimation
-          if (nextBitrate == null) {
-            bandwidthEstimate = this.estimator.getEstimate();
+            // if nextBitrate is not yet defined, do the normal estimation
+            if (nextBitrate == null) {
+              bandwidthEstimate = this.estimator.getEstimate();
 
-            let nextEstimate;
-            if (bandwidthEstimate != null) {
-              nextEstimate = inStarvationMode ?
-                bandwidthEstimate * ABR_STARVATION_FACTOR :
-                bandwidthEstimate * ABR_REGULAR_FACTOR;
-            } else if (lastEstimatedBitrate != null) {
-              nextEstimate = inStarvationMode ?
-                lastEstimatedBitrate * ABR_STARVATION_FACTOR :
-                lastEstimatedBitrate * ABR_REGULAR_FACTOR;
-            } else {
-              nextEstimate = _initialBitrate;
+              let nextEstimate;
+              if (bandwidthEstimate != null) {
+                nextEstimate = inStarvationMode ?
+                  bandwidthEstimate * ABR_STARVATION_FACTOR :
+                  bandwidthEstimate * ABR_REGULAR_FACTOR;
+              } else if (lastEstimatedBitrate != null) {
+                nextEstimate = inStarvationMode ?
+                  lastEstimatedBitrate * ABR_STARVATION_FACTOR :
+                  lastEstimatedBitrate * ABR_REGULAR_FACTOR;
+              } else {
+                nextEstimate = _initialBitrate;
+              }
+              nextBitrate = Math.min(nextEstimate, maxAutoBitrate);
             }
-            nextBitrate = Math.min(nextEstimate, maxAutoBitrate);
-          }
 
-          if (clock.speed > 1) {
-            nextBitrate /= clock.speed;
-          }
+            if (clock.speed > 1) {
+              nextBitrate /= clock.speed;
+            }
 
-          const _representations =
-            getFilteredRepresentations(representations, deviceEvents);
+            const _representations =
+              getFilteredRepresentations(representations, filters);
 
-          return {
-            bitrate: bandwidthEstimate,
-            representation: fromBitrateCeil(_representations, nextBitrate) ||
-            representations[0],
-          };
+            return {
+              bitrate: bandwidthEstimate,
+              representation: fromBitrateCeil(_representations, nextBitrate) ||
+              representations[0],
+            };
 
         }).do(({ bitrate }) => {
           if (bitrate != null) {

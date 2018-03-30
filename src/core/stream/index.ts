@@ -68,6 +68,7 @@ import getInitialTime, {
 } from "./get_initial_time";
 import liveEventsHandler from "./live_events_handler";
 import createMediaErrorHandler from "./media_error_handler";
+import PlaybackQualityManager from "./playback_quality_manager";
 import SegmentBookkeeper from "./segment_bookkeeper";
 import SpeedManager from "./speed_manager";
 import StallingManager from "./stalling_manager";
@@ -336,6 +337,9 @@ export default function Stream({
     const segmentPipelinesManager = new SegmentPipelinesManager(
       transport, requestsInfos$, network$, warning$);
 
+    const playbackQualityManager =
+      new PlaybackQualityManager(videoElement, "media-source");
+
     /**
      * Create ABR Manager, which will choose the right "Representation" for a
      * given "Adaptation".
@@ -375,7 +379,8 @@ export default function Stream({
         maxRetryOffline: networkConfig.offlineRetry,
         textTrackOptions,
       },
-      warning$
+      warning$,
+      playbackQualityManager
     ).mergeMap((evt) => {
       if (evt.type === "end-of-stream") {
         log.info("Triggering end of stream.");

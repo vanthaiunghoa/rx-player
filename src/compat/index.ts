@@ -44,6 +44,11 @@ import {
   setMediaKeys,
 } from "./eme";
 
+import {
+  IDecodingInfos,
+  IMediaConfiguration,
+} from "../core/stream/playback_quality_manager";
+
 /**
  * Returns true if the given codec is supported by the browser's MediaSource
  * implementation.
@@ -344,6 +349,68 @@ function makeCue(
   return new VTTCue_(startTime, endTime, payload);
 }
 
+/**
+ * Get informations about playback frame counts.
+ * HTMLVideoElement API is supported in Firefox >= 25.
+ * @param {HTMLMediaElement} videoElement
+ */
+function getVideoFrameDecodingQuality(
+  videoElement: HTMLMediaElement
+): IVideoPlaybackQuality {
+  if (videoElement.getVideoPlaybackQuality) {
+      return videoElement.getVideoPlaybackQuality();
+  }
+  else if (videoElement.webkitDroppedFrameCount &&
+    videoElement.webkitDecodedFrameCount) {
+      return {
+          droppedVideoFrames: videoElement.webkitDroppedFrameCount,
+          totalVideoFrames: videoElement.webkitDroppedFrameCount
+              + videoElement.webkitDecodedFrameCount,
+          creationTime: Date.now(),
+      };
+  }
+  else {
+      return {
+          droppedVideoFrames: 0,
+          totalVideoFrames: 0,
+          creationTime: Date.now(),
+      };
+  }
+}
+
+/**
+ * Calculate informations about decoding capabilities of current browser,
+ * from video frame decoding quality.
+ * @param {HTMLMediaElement} videoElement
+ */
+function getCustomDecodingInfos(videoElement: HTMLMediaElement){
+  const frameInfos = getVideoFrameDecodingQuality(videoElement);
+  const ratio = frameInfos.droppedVideoFrames / frameInfos.totalVideoFrames || 0;
+  return Promise.resolve({
+    supported: true,
+    smooth: ratio <= 0.1,
+    powerEfficient: true,
+  });
+}
+
+/**
+ * Get informations about decoding capabilities of current browser.
+ * @param {HTMLMediaElement} videoElement
+ */
+function getDecodingInfos(
+  videoElement: HTMLMediaElement,
+  config: IMediaConfiguration
+): Promise<IDecodingInfos> {
+  if ((navigator as any).mediaCapabilities) {
+    return (navigator as any).mediaCapabilities.decodingInfo(config)
+      .catch((error: Error) => {
+        log.warn(error);
+        return getCustomDecodingInfos(videoElement);
+      });
+  }
+  return getCustomDecodingInfos(videoElement);
+}
+
 export {
   KeySystemAccess,
   MediaSource_,
@@ -372,4 +439,5 @@ export {
   shouldRenewMediaKeys,
   shouldUnsetMediaKeys,
   onSourceOpen$,
+  getDecodingInfos,
 };

@@ -47,6 +47,9 @@ class Representation {
   public height? : number;
   public mimeType? : string;
   public width? : number;
+  public framerate? : string;
+  public samplerate? : number;
+  public channels? : string;
 
   /**
    * @constructor

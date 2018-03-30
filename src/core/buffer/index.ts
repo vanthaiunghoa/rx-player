@@ -29,6 +29,7 @@ import {
   SupportedBufferTypes,
 } from "../source_buffers";
 import { SegmentBookkeeper } from "../stream";
+import PlaybackQualityManager from "../stream/playback_quality_manager";
 import RepresentationBuffer, {
   IAddedSegmentEvent,
   IBufferActiveEvent,
@@ -139,11 +140,12 @@ export default class AdaptationBufferManager {
     segmentBookkeeper : SegmentBookkeeper,
     pipeline : (content : ISegmentLoaderArguments) => Observable<any>,
     wantedBufferAhead$ : Observable<number>,
-    content : { manifest : Manifest; period : Period; adaptation : Adaptation }
+    content : { manifest : Manifest; period : Period; adaptation : Adaptation },
+    playbackQualityManager: PlaybackQualityManager
   ) : Observable<IAdaptationBufferEvent> {
 
     const { manifest, period, adaptation } = content;
-    const abr$ = this._getABRForAdaptation(manifest, adaptation);
+    const abr$ = this._getABRForAdaptation(manifest, adaptation, playbackQualityManager);
 
     /**
      * Emit at each bitrate estimate done by the ABRManager
@@ -193,7 +195,7 @@ export default class AdaptationBufferManager {
             period,
             representation,
           },
-        }).concat(createRepresentationBuffer(representation))
+        }).concat(createRepresentationBuffer(adaptation.type, representation))
       );
 
     return Observable.merge(buffer$, bitrateEstimate$);
@@ -205,12 +207,31 @@ export default class AdaptationBufferManager {
      * @returns {Observable}
      */
     function createRepresentationBuffer(
+      adaptationType: string,
       representation : Representation
     ) : Observable<IRepresentationBufferEvent<any>> {
 
+      const clock$ = bufferClock$.do((clock) => {
+        const currentTime = clock.currentTime;
+        const rep: Representation|undefined =
+          segmentBookkeeper.inventory.reduce((acc: Representation|undefined, segment) => {
+            if(
+              segment.start <= currentTime &&
+              segment.end >= currentTime
+            ) {
+              return segment.infos.representation;
+            }
+            return acc;
+          }, undefined);
+          if (rep) {
+            playbackQualityManager.updateConfigurationWithRepresentation(
+              adaptationType, rep);
+          }
+      });
+
       log.info("changing representation", adaptation.type, representation);
       return RepresentationBuffer({
-        clock$: bufferClock$,
+        clock$,
         content: {
           representation,
           adaptation,
@@ -242,14 +263,15 @@ export default class AdaptationBufferManager {
         log.warn("precondition failed", manifest.presentationLiveGap);
 
         return Observable.timer(2000)
-          .mergeMap(() => createRepresentationBuffer(representation));
+          .mergeMap(() => createRepresentationBuffer(adaptation.type, representation));
       });
     }
   }
 
   private _getABRForAdaptation(
     manifest : Manifest,
-    adaptation : Adaptation
+    adaptation : Adaptation,
+    playbackQualityManager: PlaybackQualityManager
   ) {
     const representations = adaptation.representations;
 
@@ -288,7 +310,11 @@ export default class AdaptationBufferManager {
       };
     }).share();  // side-effect === share to avoid doing it multiple times
 
-    return this._abrManager.get$(adaptation.type, abrClock$, representations)
+    const bitrateForSmoothPlayback$: Observable<number> =
+      playbackQualityManager.getBitrateForSmoothPlayback$(adaptation.type);
+
+    return this._abrManager.get$(
+      adaptation.type, abrClock$, representations, bitrateForSmoothPlayback$)
       .do(({ representation }) => {
         currentRepresentation = representation;
       });
