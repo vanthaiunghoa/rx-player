@@ -37,7 +37,6 @@ import {
 import arrayIncludes from "../../utils/array-includes";
 import castToObservable from "../../utils/castToObservable";
 import log from "../../utils/log";
-import noop from "../../utils/noop";
 import { retryObsWithBackoff } from "../../utils/retry";
 import tryCatch from "../../utils/rx-tryCatch";
 import {
@@ -77,6 +76,7 @@ type LicenseObject =
   BufferSource |
   ArrayBuffer |
   ArrayBufferView;
+
 /**
  * Create the Object emitted by the EME Observable.
  * @param {string} name - name of the event
@@ -231,10 +231,9 @@ function sessionEventsHandler(
 }
 
 /**
- * Create Key MediaKeySession and link MediaKeySession events to the right events
- * handlers.
+ * Create MediaKeySession and cache loaded session.
  * @param {MediaKeys} mediaKeys
- * @param {string} sessionType
+ * @param {string} sessionType - Either "persistent-license" or "temporary"
  * @param {UInt8Array} initData
  * @returns {Observable}
  */
@@ -272,75 +271,52 @@ export function handleSessionEvents(
 }
 
 /**
- * @param {MediaKeySession} session
- * @param {Uint8Array} initData
+ * Generate a request from session.
+ * @param {MediaKeySession} session
+ * @param {Uint8Array} initData
  * @param {string} initDataType
  * @param {string} sessionType
- * @returns {Observable}
+ * @returns {Object}
  */
 function generateKeyRequest(
   session: MediaKeySession|IMediaKeySession,
   initData: Uint8Array,
   initDataType: string,
-  sessionType: string
-) : Observable<ISessionEvent> {
-
-  const generateRequest = castToObservable(
-    session.generateRequest(initDataType, initData)
-  )
-    .catch((error) => {
-      throw new EncryptedMediaError("KEY_GENERATE_REQUEST_ERROR", error, false);
-    })
-
-    .do(() => {
-      if (sessionType === "persistent-license") {
-        $storedSessions.add(initData, session);
-      }
-    })
-
-    .mapTo(createSessionEvent("generated-request", session, { initData, initDataType }));
-
-  return generateRequest;
-}
-
-/**
- * React to each "encrypted" events.
- * @param {MediaKeySession} session
- * @param {MediaEncryptedEvent} encryptedEvent
- * @returns {Observable}
- */
-function generateRequestOnSession(
-  session: MediaKeySession|IMediaKeySession,
-  encryptedEvent : MediaEncryptedEvent
+  sessionType: MediaKeySessionType
 ): Observable<ISessionEvent> {
-    return Observable.defer(() => {
 
-      if (encryptedEvent.initData == null) {
-        const error = new Error("no init data found on media encrypted event.");
-        throw new EncryptedMediaError("INVALID_ENCRYPTED_EVENT", error, true);
-      }
-
-      const initData = new Uint8Array(encryptedEvent.initData);
-      const initDataType = encryptedEvent.initDataType;
-
-      const generateKeyRequest$ =
-        generateKeyRequest(session, initData, initDataType, "temporary");
-
-        return generateKeyRequest$;
-    });
+  return Observable.defer(() => {
+    return castToObservable(
+      session.generateRequest(initDataType, initData)
+    )
+      .catch((error) => {
+        throw new EncryptedMediaError("KEY_GENERATE_REQUEST_ERROR", error, false);
+      })
+      .do(() => {
+        if (sessionType === "persistent-license") {
+          $storedSessions.add(initData, session);
+        }
+      })
+      .mapTo(
+        createSessionEvent("generated-request", session, { initData, initDataType }));
+  });
 }
 
 /**
- * @param {MediaEncryptedEvent} encryptedEvent
- * @param {Object} mediaKeysInfos
+ * If session creating fails, retry once session creation/reuse.
+ * @param initData
+ * @param initDataType
+ * @param mediaKeysInfos
  * @returns {Observable}
  */
 export function createOrReuseSessionWithRetry(
-  encryptedEvent: MediaEncryptedEvent,
+  initData: Uint8Array,
+  initDataType: string,
   mediaKeysInfos: IMediaKeysInfos
-) : Observable<ISessionEvent> {
+): Observable<ISessionEvent> {
   return createOrReuseSession(
-    encryptedEvent,
+    initData,
+    initDataType,
     mediaKeysInfos
   ).catch((error) => {
     if (error.code !== ErrorCodes.KEY_GENERATE_REQUEST_ERROR) {
@@ -357,7 +333,8 @@ export function createOrReuseSessionWithRetry(
     return $loadedSessions.deleteAndClose(firstLoadedSession)
       .mergeMap(() => {
         return createOrReuseSession(
-          encryptedEvent,
+          initData,
+          initDataType,
           mediaKeysInfos
         );
       }
@@ -365,48 +342,47 @@ export function createOrReuseSessionWithRetry(
   });
 }
 
+/**
+ * Create session, or reuse persistent stored session.
+ * @param {Uint8Array} initData
+ * @param {string} initDataType
+ * @param {Object} mediaKeysInfos
+ */
 function createOrReuseSession(
-  encryptedEvent: MediaEncryptedEvent,
+  initData: Uint8Array,
+  initDataType: string,
   mediaKeysInfos: IMediaKeysInfos
 ): Observable<ISessionEvent> {
-  // reuse currently loaded sessions without making a new key request
-  const initData = new Uint8Array(encryptedEvent.initData || new ArrayBuffer(0));
-  const initDataType = encryptedEvent.initDataType;
 
   const loadedSession = $loadedSessions.get(initData);
   if (loadedSession && loadedSession.sessionId) {
     log.debug("eme: reuse loaded session", loadedSession.sessionId);
     return Observable.of(createSessionEvent("reuse-session", loadedSession));
   } else {
-    return createSession(mediaKeysInfos.mediaKeys, "temporary", initData)
+    const {
+      keySystem,
+      keySystemAccess,
+      mediaKeys,
+    } = mediaKeysInfos;
+    const mksConfig = keySystemAccess.getConfiguration();
+    const sessionTypes = mksConfig.sessionTypes;
+    const hasPersistence = (
+      sessionTypes && arrayIncludes(sessionTypes, "persistent-license"));
+
+    const sessionType =
+      hasPersistence && keySystem.persistentLicense ? "persistent-license" : "temporary";
+
+    return createSession(mediaKeys, sessionType, initData)
       .mergeMap((session) => {
-
-        const {
-          keySystem,
-          keySystemAccess,
-          mediaKeys,
-        } = mediaKeysInfos;
-        const mksConfig = keySystemAccess.getConfiguration();
-
-        let sessionType : MediaKeySessionType = "temporary"; // (default value)
-        const sessionTypes = mksConfig.sessionTypes;
-        const hasPersistence = (
-          sessionTypes && arrayIncludes(sessionTypes, "persistent-license"));
-
         if (hasPersistence && keySystem.persistentLicense) {
-          sessionType = "persistent-license";
-
           // if a persisted session exists in the store associated to this initData,
           // we reuse it without a new license request through the `load` method.
           const storedEntry = $storedSessions.get(initData);
           if (storedEntry) {
             return loadPersistentSession(storedEntry.sessionId, initData, session)
               .catch(() => {
-                return createSession(mediaKeys, "persistent-license", initData)
-                  .mergeMap((_session) => {
-                    return generateKeyRequest(
-                      _session, initData, initDataType, sessionType);
-                  }).startWith(
+                return generateKeyRequest(
+                  session, initData, initDataType, sessionType).startWith(
                     createSessionEvent(
                       "loaded-session-failed",
                       session,
@@ -415,13 +391,21 @@ function createOrReuseSession(
               });
           }
         }
-        return generateRequestOnSession(
-            session, encryptedEvent);
+        return generateKeyRequest(
+            session, initData, initDataType, sessionType);
       });
   }
 }
 
-export function loadPersistentSession(
+/**
+ * Load persistent session from stored session id.
+ * If loading fails, delete persistent session from cache.
+ * If loading succeed, update cache with new session.
+ * @param {string} storedSessionId
+ * @param {Uint8Array} initData
+ * @param {MediaKeySession} session
+ */
+function loadPersistentSession(
   storedSessionId: string,
   initData: Uint8Array,
   session: MediaKeySession|IMediaKeySession
@@ -430,19 +414,12 @@ export function loadPersistentSession(
 
   return castToObservable(session.load(storedSessionId))
     .catch((error) => {
-        // Failed. Try to create a new persistent session from scratch
-      log.warn("eme: no data stored for the loaded session, do fallback",
+      log.warn("eme: no data stored for the loaded session.",
         storedSessionId);
 
       $loadedSessions.deleteById(storedSessionId);
       $storedSessions.delete(initData);
 
-      if (session.sessionId) {
-        castToObservable(session.remove())
-          .subscribe(noop, (e) => {
-            log.warn("Failed to remove session:" + e.message);
-          });
-      }
       throw error;
     })
     .mergeMap(() => {

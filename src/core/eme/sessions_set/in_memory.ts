@@ -15,12 +15,9 @@
  */
 
 import { Observable } from "rxjs/Observable";
-import { ConnectableObservable } from "rxjs/observable/ConnectableObservable";
-import { Subscription } from "rxjs/Subscription";
 import { IMediaKeySession } from "../../../compat";
 import castToObservable from "../../../utils/castToObservable";
 import log from "../../../utils/log";
-import { ISessionEvent } from "../session";
 import SessionSet from "./abstract";
 import hashInitData from "./hash_init_data";
 
@@ -28,7 +25,6 @@ import hashInitData from "./hash_init_data";
 interface ISessionData {
   initData : number;
   session : IMediaKeySession|MediaKeySession;
-  eventSubscription : Subscription;
 }
 
 /**
@@ -81,12 +77,10 @@ export default class InMemorySessionsSet extends SessionSet<ISessionData> {
   /**
    * @param {Uint8Array|Array.<number>|number} initData
    * @param {MediaKeySession} session
-   * @param {ConnectableObservable} sessionEvents
    */
   add(
     initData : Uint8Array|number[]|number,
-    session : IMediaKeySession|MediaKeySession,
-    sessionEvents? : ConnectableObservable<Event|ISessionEvent>
+    session : IMediaKeySession|MediaKeySession
   ) : void {
     const hash = hashInitData(initData);
     const currentSession = this.get(hash);
@@ -94,12 +88,9 @@ export default class InMemorySessionsSet extends SessionSet<ISessionData> {
       this.deleteAndClose(currentSession);
     }
 
-    const eventSubscription =
-      sessionEvents ? sessionEvents.connect() : new Subscription();
     const entry = {
       session,
       initData: hash,
-      eventSubscription,
     };
     log.debug("eme-mem-store: add session", entry);
     this._entries.push(entry);
@@ -130,11 +121,10 @@ export default class InMemorySessionsSet extends SessionSet<ISessionData> {
       return null;
     }
 
-    const { session, eventSubscription } = entry;
+    const { session } = entry;
     log.debug("eme-mem-store: delete session", entry);
     const idx = this._entries.indexOf(entry);
     this._entries.splice(idx, 1);
-    eventSubscription.unsubscribe();
     return session;
   }
 

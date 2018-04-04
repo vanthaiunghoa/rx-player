@@ -44,7 +44,6 @@ import {
   IMediaKeysInfos,
   ISessionEvent,
 } from "./session";
-import hashInitData from "./sessions_set/hash_init_data";
 import setMediaKeysObs, { disposeMediaKeys } from "./set_media_keys";
 
 // Persisted singleton instance of MediaKeys. We do not allow multiple
@@ -156,19 +155,7 @@ function createEME(
    *
    * @type {Observable}
    */
-  const encrypted$ = onEncrypted$(video)
-    .distinctUntilChanged(function isSameEncryptedEvent(prevEvt, evt) {
-      if (
-        evt.initData == null || prevEvt.initData == null ||
-        evt.initDataType !== prevEvt.initDataType
-      ) {
-
-        return false;
-      }
-      const evtHash = hashInitData(new Uint8Array(evt.initData));
-      const prevHash = hashInitData(new Uint8Array(prevEvt.initData));
-      return evtHash === prevHash;
-    });
+  const encrypted$ = onEncrypted$(video);
 
   // Create or get cached session.
   return  Observable.combineLatest(
@@ -183,13 +170,17 @@ function createEME(
         throw new EncryptedMediaError("INVALID_ENCRYPTED_EVENT", error, true);
       }
 
-      const sessionEvents = createOrReuseSessionWithRetry(
-        encryptedEvent,
+      const initData = new Uint8Array(encryptedEvent.initData);
+      const initDataType = encryptedEvent.initDataType;
+
+      const events$ = createOrReuseSessionWithRetry(
+        initData,
+        initDataType,
         mediaKeysInfos
       );
 
       return Observable.combineLatest(
-        sessionEvents,
+        events$,
         Observable.of(encryptedEvent),
         Observable.of(mediaKeysInfos)
       );
