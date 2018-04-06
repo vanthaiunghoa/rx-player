@@ -597,6 +597,24 @@ export default {
       "com.youtube.playready",
     ],
   } as IDictionary<string[]>,
+
+  /**
+   * Base video codecs.
+   * Should be supported in most major browser.
+   */
+  PQM_DEFAULT_VIDEO_CODECS: [
+    "video/mp4; codecs=\"avc1.4D401E\"",
+    "video/webm; codecs=\"vp09.00.10.08\"",
+  ],
+
+  /**
+   * Base audio codecs.
+   * Should be supported in most major browser.
+   */
+  PQM_DEFAULT_AUDIO_CODECS: [
+    "audio/webm; codecs=opus",
+    "audio/mp4; codecs=\"mp4a.40.2\"",
+  ],
   /* tslint:enable no-object-literal-type-assertion */
 
   /**

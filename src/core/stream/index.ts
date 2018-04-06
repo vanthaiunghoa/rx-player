@@ -209,7 +209,7 @@ export default function Stream({
         fetchManifest(url),
         onSourceOpen$(mediaSource).take(1)
       ).mergeMap(([manifest]) => {
-        return initializeStream(mediaSource, manifest);
+          return initializeStream(mediaSource, manifest);
       });
     });
 
