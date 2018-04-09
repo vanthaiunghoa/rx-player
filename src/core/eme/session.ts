@@ -428,16 +428,9 @@ function createOrReuseSession(
         const storedEntry = $storedSessions.get(initData);
 
         if (storedEntry) {
-          return loadPersistentSession(storedEntry.sessionId, initData, session)
-            .do(() => $storedSessions.add(initData, session))
-            .catch(() => {
-                return Observable.of(createSessionManagementEvent(
-                  "loaded-session-failed",
-                  session,
-                  { storedSessionId: storedEntry.sessionId }
-                )).concat(
-                  generateKeyRequest(session, initData, initDataType));
-            });
+          return loadPersistentSession(
+            storedEntry.sessionId, initData, session, initDataType
+          ).do(() => $storedSessions.add(initData, session));
         }
       }
 
@@ -460,7 +453,8 @@ function createOrReuseSession(
 function loadPersistentSession(
   storedSessionId: string,
   initData: Uint8Array,
-  session: MediaKeySession|IMediaKeySession
+  session: MediaKeySession|IMediaKeySession,
+  initDataType: string
 ) : Observable<ISessionManagementEvent> {
   log.debug("eme: load persisted session", storedSessionId);
 
@@ -474,11 +468,20 @@ function loadPersistentSession(
 
       throw error;
     })
-    .mergeMap(() => {
+    .mergeMap((success) => {
+      if (success) {
         $loadedSessions.add(initData, session);
         $storedSessions.add(initData, session);
         return Observable.of(
           createSessionManagementEvent("loaded-session", session, { storedSessionId }));
+      } else {
+        return Observable.of(createSessionManagementEvent(
+          "loaded-session-failed",
+          session,
+          { storedSessionId }
+        )).concat(
+          generateKeyRequest(session, initData, initDataType));
+      }
     });
 }
 

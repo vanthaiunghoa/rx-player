@@ -184,7 +184,7 @@ function createEME(
         Observable.of(mediaKeysInfos);
 
       return Observable.combineLatest(
-        Observable.of(sessionManagementEvents$),
+        sessionManagementEvents$,
         Observable.of(encryptedEvent),
         setMediaKeys$
       );
@@ -193,24 +193,23 @@ function createEME(
 
   // Handle events from active session
   const sessionEvents$ = sessionCreationOrReuse$.mergeMap((
-    [sessionManagementEvents$, encryptedEvent, mediaKeysInfos]) => {
-      const updateSessionEvents$ = sessionManagementEvents$.mergeMap((event) => {
-        return event.value.name === "created-session" ?
+    [sessionManagementEvents, encryptedEvent, mediaKeysInfos]) => {
+      const updateSessionEvents$ =
+        sessionManagementEvents.value.name === "created-session" ?
           handleSessionEvents(
-            event.value.session,
+            sessionManagementEvents.value.session,
             mediaKeysInfos.keySystem,
             new Uint8Array(encryptedEvent.initData as ArrayBuffer),
             errorStream
           ) : Observable.empty<never>();
-      });
 
       return Observable.merge(
-          sessionManagementEvents$,
+          Observable.of(sessionManagementEvents),
           updateSessionEvents$
       );
     });
 
-    return sessionEvents$;
+  return sessionEvents$;
 }
 
 /**
