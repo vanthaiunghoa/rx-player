@@ -44,6 +44,7 @@ import {
   IMediaKeysInfos,
   ISessionEvent,
 } from "./session";
+import hashInitData from "./sessions_set/hash_init_data";
 import setMediaKeysObs, { disposeMediaKeys } from "./set_media_keys";
 
 // Persisted singleton instance of MediaKeys. We do not allow multiple
@@ -149,67 +150,52 @@ function createEME(
     }, "keySystem"));
   }
 
-  /**
-   * Encrypted events may be distinct until initData changes.
-   * It is usefull to trigger session creation on two consecutive init datas.
-   *
-   * @type {Observable}
-   */
-  const encrypted$ = onEncrypted$(video);
+  const sessionBeingCreated = new Map();
 
   // Create or get cached session.
-  const sessionCreationOrReuse$ = Observable.combineLatest(
-    encrypted$,
+  return Observable.combineLatest(
+    onEncrypted$(video),
     createMediaKeys(keySystems, errorStream)
-  ).concatMap(
+  ).mergeMap(
     ([encryptedEvent, mediaKeysInfos], i) => {
       log.info("eme: encrypted event", encryptedEvent);
-
       if (encryptedEvent.initData == null) {
         const error = new Error("no init data found on media encrypted event.");
         throw new EncryptedMediaError("INVALID_ENCRYPTED_EVENT", error, true);
       }
-
       const initData = new Uint8Array(encryptedEvent.initData);
       const initDataType = encryptedEvent.initDataType;
+      sessionBeingCreated.set(hashInitData(initData), undefined);
 
-      const sessionManagementEvents$ = createOrReuseSessionWithRetry(
-        initData,
-        initDataType,
-        mediaKeysInfos
-      ).share();
+      if (!sessionBeingCreated.get(hashInitData(initData))) {
+        const getSessionInfos$ = createOrReuseSessionWithRetry(
+          initData,
+          initDataType,
+          mediaKeysInfos
+        );
 
-      const setMediaKeys$ = i === 0 ?
-        setMediaKeysObs(mediaKeysInfos, video, instanceInfos) :
-        Observable.of(mediaKeysInfos);
+        const setMediaKeys$ = i === 0 ?
+          setMediaKeysObs(mediaKeysInfos, video, instanceInfos) :
+          Observable.of(mediaKeysInfos);
 
-      return Observable.combineLatest(
-        sessionManagementEvents$,
-        Observable.of(encryptedEvent),
-        setMediaKeys$
-      );
+        return Observable.merge(
+          getSessionInfos$,
+          setMediaKeys$.ignoreElements() as Observable<never>
+        ).do(() => {
+          sessionBeingCreated.delete(hashInitData(initData));
+        }).mergeMap((sessionManagementEvents) => {
+          return sessionManagementEvents.value.name === "created-session" ?
+              handleSessionEvents(
+                sessionManagementEvents.value.session,
+                mediaKeysInfos.keySystem,
+                new Uint8Array(encryptedEvent.initData as ArrayBuffer),
+                errorStream
+              ) : Observable.empty<never>();
+        });
+      }
+      return Observable.empty();
     }
   );
-
-  // Handle events from active session
-  const sessionEvents$ = sessionCreationOrReuse$.mergeMap((
-    [sessionManagementEvents, encryptedEvent, mediaKeysInfos]) => {
-      const updateSessionEvents$ =
-        sessionManagementEvents.value.name === "created-session" ?
-          handleSessionEvents(
-            sessionManagementEvents.value.session,
-            mediaKeysInfos.keySystem,
-            new Uint8Array(encryptedEvent.initData as ArrayBuffer),
-            errorStream
-          ) : Observable.empty<never>();
-
-      return Observable.merge(
-          Observable.of(sessionManagementEvents),
-          updateSessionEvents$
-      );
-    });
-
-  return sessionEvents$;
 }
 
 /**
