@@ -201,7 +201,7 @@ function createEME(
             mediaKeysInfos.keySystem,
             new Uint8Array(encryptedEvent.initData as ArrayBuffer),
             errorStream
-          ) : Observable.empty() as Observable<never>;
+          ) : Observable.empty<never>();
       });
 
       return Observable.merge(
