@@ -150,7 +150,7 @@ function createEME(
     }, "keySystem"));
   }
 
-  const sessionBeingCreated = new Map();
+  let isCreating: boolean = false;
 
   // Create or get cached session.
   return Observable.combineLatest(
@@ -165,9 +165,9 @@ function createEME(
       }
       const initData = new Uint8Array(encryptedEvent.initData);
       const initDataType = encryptedEvent.initDataType;
-      sessionBeingCreated.set(hashInitData(initData), undefined);
+      isCreating = true;
 
-      if (!sessionBeingCreated.get(hashInitData(initData))) {
+      if (!isCreating) {
         const getSessionInfos$ = createOrReuseSessionWithRetry(
           initData,
           initDataType,
@@ -182,7 +182,7 @@ function createEME(
           getSessionInfos$,
           setMediaKeys$.ignoreElements() as Observable<never>
         ).do(() => {
-          sessionBeingCreated.delete(hashInitData(initData));
+          isCreating = false;
         }).mergeMap((sessionManagementEvents) => {
           return sessionManagementEvents.value.name === "created-session" ?
               handleSessionEvents(
