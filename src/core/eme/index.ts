@@ -183,10 +183,10 @@ function createEME(
       // 2 - Generate request each time a new session is created.
       const generateKeyRequest$ = getSession$
         .mergeMap((evt) => {
-          const name = evt.value.name;
+          const type = evt.type;
           if (
-            name === "created-temporary-session" ||
-            name === "created-persistent-session"
+            type === "created-temporary-session" ||
+            type === "created-persistent-session"
           ) {
             const {
               initData,
@@ -197,14 +197,14 @@ function createEME(
           return Observable.empty<never>();
       });
 
-      // 2 - Handle every message comming from session
+      // 3 - Handle every message comming from session
       // (license update, key status message, etc)
       const handleSessionEvents$ = getSession$
         .mergeMap((sessionManagementEvents) => {
-          const name = sessionManagementEvents.value.name;
+          const type = sessionManagementEvents.type;
           if (
-            name === "created-temporary-session" ||
-            name === "created-persistent-session"
+            type === "created-temporary-session" ||
+            type === "created-persistent-session"
           ) {
             const {
               initData,

@@ -26,7 +26,11 @@ import {
   IRepresentationChangeEvent,
 } from "../buffer";
 import {
-  ILicenseEvent,
+  ISessionRequestEvent,
+} from "../eme/eme_events";
+import {
+  IMediaKeyMessageEvent,
+  ISessionCreationEvent,
   ISessionManagementEvent,
 } from "../eme/session";
 import { IBufferType } from "../source_buffers";
@@ -273,7 +277,10 @@ export type IStreamEvent =
   IPeriodBufferClearedEvent |
   IPeriodBufferReadyEvent |
   ISessionManagementEvent |
-  ILicenseEvent |
+  IMediaKeyMessageEvent |
+  ISessionCreationEvent |
+  ISessionManagementEvent |
+  ISessionRequestEvent |
   ISpeedChangedEvent |
   IStalledEvent |
   IStreamLoadedEvent |

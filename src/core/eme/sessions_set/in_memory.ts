@@ -24,6 +24,7 @@ import hashInitData from "./hash_init_data";
 // Cached data for a single MediaKeySession
 interface ISessionData {
   initData : number;
+  initDataType: string;
   session : IMediaKeySession|MediaKeySession;
 }
 
@@ -64,9 +65,17 @@ export default class InMemorySessionsSet extends SessionSet<ISessionData> {
    * @param {number|Uint8Array} initData
    * @returns {MediaKeySession|null}
    */
-  get(initData : number|Uint8Array) : IMediaKeySession|MediaKeySession|null {
+  get(
+    initData : number|Uint8Array,
+    initDataType: string
+  ) : IMediaKeySession|MediaKeySession|null {
     const hash = hashInitData(initData);
-    const entry = this.find((e) => e.initData === hash);
+    const entry = this.find((e) => {
+      return(
+        e.initData === hash &&
+        e.initDataType === initDataType
+      );
+    });
     if (entry) {
       return entry.session;
     } else {
@@ -80,10 +89,11 @@ export default class InMemorySessionsSet extends SessionSet<ISessionData> {
    */
   add(
     initData : Uint8Array|number[]|number,
+    initDataType : string,
     session : IMediaKeySession|MediaKeySession
   ) : void {
     const hash = hashInitData(initData);
-    const currentSession = this.get(hash);
+    const currentSession = this.get(hash, initDataType);
     if (currentSession) {
       this.deleteAndClose(currentSession);
     }
@@ -91,6 +101,7 @@ export default class InMemorySessionsSet extends SessionSet<ISessionData> {
     const entry = {
       session,
       initData: hash,
+      initDataType,
     };
     log.debug("eme-mem-store: add session", entry);
     this._entries.push(entry);
@@ -100,8 +111,17 @@ export default class InMemorySessionsSet extends SessionSet<ISessionData> {
    * @param {string} sessionId
    * @returns {MediaKeySession|null}
    */
-  deleteById(sessionId : string) : IMediaKeySession|MediaKeySession|null {
-    const entry = this.find((e) => e.session.sessionId === sessionId);
+  deleteByInitData(
+    initData : Uint8Array,
+    initDataType: string
+  ) : IMediaKeySession|MediaKeySession|null {
+    const hash = hashInitData(initData);
+    const entry = this.find((e) => {
+      return(
+        e.initData === hash &&
+        e.initDataType === initDataType
+      );
+    });
     if (entry) {
       return this.delete(entry.session);
     } else {
