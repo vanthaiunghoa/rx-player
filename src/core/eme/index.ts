@@ -40,11 +40,11 @@ import { trySettingServerCertificate } from "./server_certificate";
 import {
   createOrReuseSessionWithRetry,
   ErrorStream,
+  generateKeyRequest,
   handleSessionEvents,
   IMediaKeysInfos,
   ISessionEvent,
 } from "./session";
-import hashInitData from "./sessions_set/hash_init_data";
 import setMediaKeysObs, { disposeMediaKeys } from "./set_media_keys";
 
 // Persisted singleton instance of MediaKeys. We do not allow multiple
@@ -150,52 +150,68 @@ function createEME(
     }, "keySystem"));
   }
 
-  let isCreating: boolean = false;
+  return createMediaKeys(keySystems, errorStream)
+    .mergeMap((mediaKeysInfos) => {
+      // Create or get cached session.
+      const getSession$ = onEncrypted$(video).concatMap(
+        (encryptedEvent, i) => {
+          log.info("eme: encrypted event", encryptedEvent);
+          if (encryptedEvent.initData == null) {
+            const error = new Error("no init data found on media encrypted event.");
+            throw new EncryptedMediaError("INVALID_ENCRYPTED_EVENT", error, true);
+          }
+          const initData = new Uint8Array(encryptedEvent.initData);
 
-  // Create or get cached session.
-  return Observable.combineLatest(
-    onEncrypted$(video),
-    createMediaKeys(keySystems, errorStream)
-  ).mergeMap(
-    ([encryptedEvent, mediaKeysInfos], i) => {
-      log.info("eme: encrypted event", encryptedEvent);
-      if (encryptedEvent.initData == null) {
-        const error = new Error("no init data found on media encrypted event.");
-        throw new EncryptedMediaError("INVALID_ENCRYPTED_EVENT", error, true);
-      }
-      const initData = new Uint8Array(encryptedEvent.initData);
-      const initDataType = encryptedEvent.initDataType;
-      isCreating = true;
+            const getSessionInfos$ = createOrReuseSessionWithRetry(
+              initData,
+              mediaKeysInfos
+            );
 
-      if (!isCreating) {
-        const getSessionInfos$ = createOrReuseSessionWithRetry(
-          initData,
-          initDataType,
-          mediaKeysInfos
-        );
+            const setMediaKeys$ = i === 0 ?
+              setMediaKeysObs(mediaKeysInfos, video, instanceInfos) :
+              Observable.of(mediaKeysInfos);
 
-        const setMediaKeys$ = i === 0 ?
-          setMediaKeysObs(mediaKeysInfos, video, instanceInfos) :
-          Observable.of(mediaKeysInfos);
+            return Observable.merge(
+              getSessionInfos$,
+              setMediaKeys$.ignoreElements() as Observable<never>
+            );
+        }
+      ).share();
 
-        return Observable.merge(
-          getSessionInfos$,
-          setMediaKeys$.ignoreElements() as Observable<never>
-        ).do(() => {
-          isCreating = false;
-        }).mergeMap((sessionManagementEvents) => {
-          return sessionManagementEvents.value.name === "created-session" ?
-              handleSessionEvents(
-                sessionManagementEvents.value.session,
-                mediaKeysInfos.keySystem,
-                new Uint8Array(encryptedEvent.initData as ArrayBuffer),
-                errorStream
-              ) : Observable.empty<never>();
+      const generateKeyRequest$ = getSession$.withLatestFrom(onEncrypted$)
+        .mergeMap(([evt, encryptedEvent]) => {
+          const name = evt.value.name;
+          if (name === "created-temporary-session" || name === "loaded-session-failed") {
+            const {
+              initData,
+              initDataType,
+            } = encryptedEvent;
+            return generateKeyRequest(evt.value.session, initData, initDataType);
+          }
+          return Observable.empty<never>();
+      });
+
+      const handleEvents$ = getSession$
+        .withLatestFrom(onEncrypted$)
+        .mergeMap(([sessionManagementEvents, encryptedEvent]) => {
+          const eventName = sessionManagementEvents.value.name;
+          if (eventName === "created-session") {
+            return handleSessionEvents(
+              sessionManagementEvents.value.session,
+              mediaKeysInfos.keySystem,
+              new Uint8Array(encryptedEvent.initData as ArrayBuffer),
+              errorStream
+            );
+          }
+          return Observable.empty<never>();
         });
-      }
-      return Observable.empty();
-    }
-  );
+
+      return Observable.merge(
+        getSession$,
+        generateKeyRequest$,
+        handleEvents$
+      );
+    }).do((evt) => console.log(evt));
 }
 
 /**

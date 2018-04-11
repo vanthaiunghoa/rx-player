@@ -60,7 +60,8 @@ export interface IMediaKeysInfos extends IKeySystemAccessInfos {
 type sessionManagementEvents =
   "generated-request" |
   "reuse-session" |
-  "created-session" |
+  "created-persistent-session" |
+  "created-temporary-session" |
   "loaded-session" |
   "loaded-session-failed";
 
@@ -329,7 +330,7 @@ export function handleSessionEvents(
  * @param {string} sessionType
  * @returns {Observable}
  */
-function generateKeyRequest(
+export function generateKeyRequest(
   session: MediaKeySession|IMediaKeySession,
   initData: Uint8Array,
   initDataType: string
@@ -357,12 +358,10 @@ function generateKeyRequest(
  */
 export function createOrReuseSessionWithRetry(
   initData: Uint8Array,
-  initDataType: string,
   mediaKeysInfos: IMediaKeysInfos
 ) : Observable<ISessionManagementEvent> {
   return createOrReuseSession(
     initData,
-    initDataType,
     mediaKeysInfos
   ).catch((error) => {
     if (error.code !== ErrorCodes.KEY_GENERATE_REQUEST_ERROR) {
@@ -380,7 +379,6 @@ export function createOrReuseSessionWithRetry(
       .mergeMap(() => {
         return createOrReuseSession(
           initData,
-          initDataType,
           mediaKeysInfos
         );
       }
@@ -396,7 +394,6 @@ export function createOrReuseSessionWithRetry(
  */
 function createOrReuseSession(
   initData: Uint8Array,
-  initDataType: string,
   mediaKeysInfos: IMediaKeysInfos
 ) : Observable<ISessionManagementEvent> {
 
@@ -429,16 +426,13 @@ function createOrReuseSession(
 
         if (storedEntry) {
           return loadPersistentSession(
-            storedEntry.sessionId, initData, session, initDataType
-          ).do(() => $storedSessions.add(initData, session));
+            storedEntry.sessionId, initData, session
+          ).concat(() =>
+              createSessionManagementEvent("created-persistent-session", session));
         }
       }
-
-      return generateKeyRequest(session, initData, initDataType)
-        .startWith(createSessionManagementEvent(
-          "created-session",
-          session
-        ));
+      return Observable.of(
+        createSessionManagementEvent("created-temporary-session", session));
     });
 }
 
@@ -453,8 +447,7 @@ function createOrReuseSession(
 function loadPersistentSession(
   storedSessionId: string,
   initData: Uint8Array,
-  session: MediaKeySession|IMediaKeySession,
-  initDataType: string
+  session: MediaKeySession|IMediaKeySession
 ) : Observable<ISessionManagementEvent> {
   log.debug("eme: load persisted session", storedSessionId);
 
@@ -479,10 +472,9 @@ function loadPersistentSession(
           "loaded-session-failed",
           session,
           { storedSessionId }
-        )).concat(
-          generateKeyRequest(session, initData, initDataType));
+        ));
       }
-    });
+    }).do(() => $storedSessions.add(initData, session));
 }
 
 export {
