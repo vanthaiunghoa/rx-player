@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import objectAssign = require("object-assign");
 import { Observable } from "rxjs/Observable";
 import { Subject } from "rxjs/Subject";
 import { TimeoutError } from "rxjs/util/TimeoutError";
@@ -34,7 +33,6 @@ import {
   ErrorTypes,
   isKnownError,
 } from "../../errors";
-import arrayIncludes from "../../utils/array-includes";
 import castToObservable from "../../utils/castToObservable";
 import log from "../../utils/log";
 import { retryObsWithBackoff } from "../../utils/retry";
@@ -51,40 +49,58 @@ import {
   IKeySystemOption,
 } from "./key_system";
 
+import arrayIncludes from "../../utils/array-includes";
+
 type ErrorStream = Subject<Error|CustomError>;
 
 export interface IMediaKeysInfos extends IKeySystemAccessInfos {
   mediaKeys : MediaKeys|IMockMediaKeys;
 }
 
+type licenseEvents = "generated-request" | "license-update";
+
 type sessionManagementEvents =
-  "generated-request" |
-  "reuse-session" |
-  "created-persistent-session" |
+  "reuse-loaded-session" |
+  "loaded-persistent-session";
+
+type sessionCreationEvents =
   "created-temporary-session" |
-  "loaded-session" |
-  "loaded-session-failed";
+  "created-persistent-session";
 
 interface ISessionManagementEvent {
   type : "ISessionManagementEvent";
   value : {
     name : sessionManagementEvents;
     session : IMediaKeySession|MediaKeySession;
+    sessionInfos: ISessionEventOptions;
   };
 }
 
-interface IUpdateSessionEvent {
-  type : "IUpdateSessionEvent";
+interface ILicenseEvent {
+  type : "ILicenseEvent";
   value : {
-    name : string;
+    name : licenseEvents;
     session : IMediaKeySession|MediaKeySession;
-    license : LicenseObject;
+    sessionInfos: ISessionEventOptions;
   };
 }
 
-type ISessionEvent = ISessionManagementEvent|IUpdateSessionEvent;
+interface ISessionCreationEvent {
+  type: "ISessionCreationEvent";
+  value: {
+    name: sessionCreationEvents;
+    session: IMediaKeySession|MediaKeySession;
+    sessionInfos: {
+      initData: Uint8Array;
+      initDataType: string;
+      storedSessionId?: string;
+    };
+  };
+}
 
-interface ISessionManagementEventOptions {
+type ISessionEvent = ISessionManagementEvent|ILicenseEvent|ISessionCreationEvent;
+
+interface ISessionEventOptions {
   updatedWith?: LicenseObject;
   initData?: Uint8Array;
   initDataType?: string;
@@ -107,11 +123,36 @@ type LicenseObject =
 function createSessionManagementEvent(
   name : sessionManagementEvents,
   session : IMediaKeySession|MediaKeySession,
-  options? : ISessionManagementEventOptions
+  options? : ISessionEventOptions
 ) : ISessionManagementEvent {
   return {
     type: "ISessionManagementEvent",
-    value: objectAssign({ name, session }, options),
+    value: {
+      name,
+      session,
+      sessionInfos: options || {},
+    },
+  };
+}
+
+function createSessionCreationEvent(
+  name : sessionCreationEvents,
+  session : IMediaKeySession|MediaKeySession,
+  initData : Uint8Array,
+  initDataType: string,
+  storedSessionId?: string
+) : ISessionCreationEvent {
+  return {
+    type: "ISessionCreationEvent",
+    value: {
+      name,
+      session,
+      sessionInfos: {
+        initData,
+        initDataType,
+        storedSessionId,
+      },
+    },
   };
 }
 
@@ -123,17 +164,17 @@ function createSessionManagementEvent(
  * session information in the returned object.
  * @returns {Object}
  */
-function createUpdateSessionEvent(
-  name : string,
+function createLicenseEvent(
+  name : licenseEvents,
   session : IMediaKeySession|MediaKeySession,
-  license : LicenseObject
-) : IUpdateSessionEvent {
+  options? : ISessionEventOptions
+) : ILicenseEvent {
   return {
-    type: "IUpdateSessionEvent",
+    type: "ILicenseEvent",
     value: {
       name,
       session,
-      license,
+      sessionInfos: options || {},
     },
   };
 }
@@ -151,7 +192,7 @@ function sessionEventsHandler(
   session: IMediaKeySession|MediaKeySession,
   keySystem: IKeySystemOption,
   errorStream: ErrorStream
-) : Observable<IUpdateSessionEvent> {
+) : Observable<ILicenseEvent> {
   log.debug("eme: handle message events", session);
 
   /**
@@ -256,15 +297,16 @@ function sessionEventsHandler(
       });
     });
 
-  const sessionUpdates: Observable<IUpdateSessionEvent> =
+  const sessionUpdates: Observable<ILicenseEvent> =
     Observable.merge(keyMessages$, keyStatusesChanges)
       .concatMap((res) => {
         log.debug("eme: update session", res);
 
         const { license, msg } = res;
-        const sessionEvent = createUpdateSessionEvent(msg, session, license);
+        const sessionEvent =
+          createLicenseEvent(msg as licenseEvents, session, { updatedWith: license });
         return castToObservable(
-          (session as any).update(res)
+          (session as any).update(license)
         )
           .catch((error) => {
             throw new EncryptedMediaError("KEY_UPDATE_ERROR", error, true);
@@ -272,7 +314,7 @@ function sessionEventsHandler(
           .mapTo(sessionEvent);
       });
 
-  const sessionEvents: Observable<IUpdateSessionEvent> =
+  const sessionEvents: Observable<ILicenseEvent> =
     Observable.merge(sessionUpdates, keyErrors);
 
   if (session.closed) {
@@ -289,7 +331,7 @@ function sessionEventsHandler(
  * @param {UInt8Array} initData
  * @returns {Observable}
  */
-function createSession(
+export function createSession(
   mediaKeys: IMockMediaKeys|MediaKeys,
   sessionType: MediaKeySessionType,
   initData: Uint8Array
@@ -312,7 +354,7 @@ export function handleSessionEvents(
   keySystem: IKeySystemOption,
   initData: Uint8Array,
   errorStream: ErrorStream
-) : Observable<IUpdateSessionEvent> {
+) : Observable<ILicenseEvent> {
   const sessionEvents = sessionEventsHandler(session, keySystem, errorStream)
     .finally(() => {
       $loadedSessions.deleteAndClose(session);
@@ -334,7 +376,7 @@ export function generateKeyRequest(
   session: MediaKeySession|IMediaKeySession,
   initData: Uint8Array,
   initDataType: string
-) : Observable<ISessionManagementEvent> {
+) : Observable<ILicenseEvent> {
   return Observable.defer(() => {
     return castToObservable(
       (session as any).generateRequest(initDataType, initData)
@@ -343,7 +385,7 @@ export function generateKeyRequest(
         throw new EncryptedMediaError("KEY_GENERATE_REQUEST_ERROR", error, false);
       })
       .mapTo(
-        createSessionManagementEvent(
+        createLicenseEvent(
           "generated-request", session, { initData, initDataType })
       );
   });
@@ -358,10 +400,12 @@ export function generateKeyRequest(
  */
 export function createOrReuseSessionWithRetry(
   initData: Uint8Array,
+  initDataType: string,
   mediaKeysInfos: IMediaKeysInfos
-) : Observable<ISessionManagementEvent> {
+) : Observable<ISessionCreationEvent|ISessionManagementEvent> {
   return createOrReuseSession(
     initData,
+    initDataType,
     mediaKeysInfos
   ).catch((error) => {
     if (error.code !== ErrorCodes.KEY_GENERATE_REQUEST_ERROR) {
@@ -379,6 +423,7 @@ export function createOrReuseSessionWithRetry(
       .mergeMap(() => {
         return createOrReuseSession(
           initData,
+          initDataType,
           mediaKeysInfos
         );
       }
@@ -394,13 +439,15 @@ export function createOrReuseSessionWithRetry(
  */
 function createOrReuseSession(
   initData: Uint8Array,
+  initDataType: string,
   mediaKeysInfos: IMediaKeysInfos
-) : Observable<ISessionManagementEvent> {
+) : Observable<ISessionCreationEvent|ISessionManagementEvent> {
 
   const loadedSession = $loadedSessions.get(initData);
   if (loadedSession && loadedSession.sessionId) {
     log.debug("eme: reuse loaded session", loadedSession.sessionId);
-    return Observable.of(createSessionManagementEvent("reuse-session", loadedSession));
+    return Observable.of(
+      createSessionManagementEvent("reuse-loaded-session", loadedSession));
   }
 
   const {
@@ -426,13 +473,13 @@ function createOrReuseSession(
 
         if (storedEntry) {
           return loadPersistentSession(
-            storedEntry.sessionId, initData, session
-          ).concat(() =>
-              createSessionManagementEvent("created-persistent-session", session));
+            storedEntry.sessionId, initData, initDataType, session
+          );
         }
       }
       return Observable.of(
-        createSessionManagementEvent("created-temporary-session", session));
+        createSessionCreationEvent(
+          "created-temporary-session", session, initData, initDataType));
     });
 }
 
@@ -447,8 +494,9 @@ function createOrReuseSession(
 function loadPersistentSession(
   storedSessionId: string,
   initData: Uint8Array,
+  initDataType: string,
   session: MediaKeySession|IMediaKeySession
-) : Observable<ISessionManagementEvent> {
+) : Observable<ISessionCreationEvent|ISessionManagementEvent> {
   log.debug("eme: load persisted session", storedSessionId);
 
   return castToObservable(session.load(storedSessionId))
@@ -466,12 +514,15 @@ function loadPersistentSession(
         $loadedSessions.add(initData, session);
         $storedSessions.add(initData, session);
         return Observable.of(
-          createSessionManagementEvent("loaded-session", session, { storedSessionId }));
+          createSessionManagementEvent(
+            "loaded-persistent-session", session, { storedSessionId }));
       } else {
-        return Observable.of(createSessionManagementEvent(
-          "loaded-session-failed",
+        return Observable.of(createSessionCreationEvent(
+          "created-persistent-session",
           session,
-          { storedSessionId }
+          initData,
+          initDataType,
+          storedSessionId
         ));
       }
     }).do(() => $storedSessions.add(initData, session));
@@ -479,7 +530,8 @@ function loadPersistentSession(
 
 export {
   ISessionManagementEvent,
-  IUpdateSessionEvent,
+  ILicenseEvent,
   ErrorStream,
   ISessionEvent,
+  ISessionCreationEvent
 };

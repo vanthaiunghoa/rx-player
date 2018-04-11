@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 import { Observable } from "rxjs/Observable";
 import {
   hasEMEAPIs,
@@ -27,6 +26,7 @@ import { assertInterface } from "../../utils/assert";
 import castToObservable from "../../utils/castToObservable";
 import log from "../../utils/log";
 import noop from "../../utils/noop";
+
 import {
   $loadedSessions,
   $storedSessions,
@@ -43,6 +43,7 @@ import {
   generateKeyRequest,
   handleSessionEvents,
   IMediaKeysInfos,
+  ISessionCreationEvent,
   ISessionEvent,
 } from "./session";
 import setMediaKeysObs, { disposeMediaKeys } from "./set_media_keys";
@@ -152,54 +153,66 @@ function createEME(
 
   return createMediaKeys(keySystems, errorStream)
     .mergeMap((mediaKeysInfos) => {
-      // Create or get cached session.
-      const getSession$ = onEncrypted$(video).concatMap(
-        (encryptedEvent, i) => {
+      // 1 - Create or reuse session from loaded session.
+      const getSession$ = onEncrypted$(video).concatMap((encryptedEvent, i) => {
           log.info("eme: encrypted event", encryptedEvent);
           if (encryptedEvent.initData == null) {
             const error = new Error("no init data found on media encrypted event.");
             throw new EncryptedMediaError("INVALID_ENCRYPTED_EVENT", error, true);
           }
           const initData = new Uint8Array(encryptedEvent.initData);
+          const initDataType = encryptedEvent.initDataType;
 
-            const getSessionInfos$ = createOrReuseSessionWithRetry(
-              initData,
-              mediaKeysInfos
-            );
+          const getSessionInfos$ = createOrReuseSessionWithRetry(
+            initData,
+            initDataType,
+            mediaKeysInfos
+          );
 
-            const setMediaKeys$ = i === 0 ?
-              setMediaKeysObs(mediaKeysInfos, video, instanceInfos) :
-              Observable.of(mediaKeysInfos);
+          const setMediaKeys$ = i === 0 ?
+            setMediaKeysObs(mediaKeysInfos, video, instanceInfos) :
+            Observable.of(mediaKeysInfos);
 
-            return Observable.merge(
-              getSessionInfos$,
-              setMediaKeys$.ignoreElements() as Observable<never>
-            );
+          return Observable.merge(
+            getSessionInfos$,
+            setMediaKeys$.ignoreElements() as Observable<never>
+          );
         }
       ).share();
 
-      const generateKeyRequest$ = getSession$.withLatestFrom(onEncrypted$)
-        .mergeMap(([evt, encryptedEvent]) => {
+      // 2 - Generate request each time a new session is created.
+      const generateKeyRequest$ = getSession$
+        .mergeMap((evt) => {
           const name = evt.value.name;
-          if (name === "created-temporary-session" || name === "loaded-session-failed") {
+          if (
+            name === "created-temporary-session" ||
+            name === "created-persistent-session"
+          ) {
             const {
               initData,
               initDataType,
-            } = encryptedEvent;
+            } = (evt as ISessionCreationEvent).value.sessionInfos;
             return generateKeyRequest(evt.value.session, initData, initDataType);
           }
           return Observable.empty<never>();
       });
 
-      const handleEvents$ = getSession$
-        .withLatestFrom(onEncrypted$)
-        .mergeMap(([sessionManagementEvents, encryptedEvent]) => {
-          const eventName = sessionManagementEvents.value.name;
-          if (eventName === "created-session") {
+      // 2 - Handle every message comming from session
+      // (license update, key status message, etc)
+      const handleSessionEvents$ = getSession$
+        .mergeMap((sessionManagementEvents) => {
+          const name = sessionManagementEvents.value.name;
+          if (
+            name === "created-temporary-session" ||
+            name === "created-persistent-session"
+          ) {
+            const {
+              initData,
+            } = (sessionManagementEvents as ISessionCreationEvent).value.sessionInfos;
             return handleSessionEvents(
               sessionManagementEvents.value.session,
               mediaKeysInfos.keySystem,
-              new Uint8Array(encryptedEvent.initData as ArrayBuffer),
+              new Uint8Array(initData),
               errorStream
             );
           }
@@ -209,9 +222,9 @@ function createEME(
       return Observable.merge(
         getSession$,
         generateKeyRequest$,
-        handleEvents$
+        handleSessionEvents$
       );
-    }).do((evt) => console.log(evt));
+    });
 }
 
 /**
