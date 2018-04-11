@@ -349,7 +349,7 @@ function createOrReuseSession(
 ) : Observable<ISessionCreationEvent|ISessionManagementEvent> {
 
   const loadedSession = $loadedSessions.get(initData, initDataType);
-  if (loadedSession && loadedSession.sessionId) {
+  if (loadedSession) {
     log.debug("eme: reuse loaded session", loadedSession.sessionId);
     return Observable.of(
       sessionManagementEvent(
