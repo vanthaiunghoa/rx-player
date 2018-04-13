@@ -183,21 +183,6 @@ export default function(options: IParserOptions = {}): ITransportPipelines {
               });
             });
             return Observable.combineLatest(parsedManifestsInfo).map((_contents) => {
-              _contents.forEach(content => {
-                content.overlays = [{
-                  start: 0,
-                  end: Number.MAX_VALUE,
-                  version: 1,
-                  element: {
-                    url: "http://127.0.0.1:8084/canal_plus_logo.png",
-                    format: "png",
-                    xAxis: "85%",
-                    yAxis: "5%",
-                    height: "",
-                    width: "10%",
-                  },
-                }];
-              });
               const manifest = parseMetaManifest(_contents, url);
               return {
                 manifest,
@@ -251,9 +236,9 @@ export default function(options: IParserOptions = {}): ITransportPipelines {
 
           return segmentParser(args).map(({ segmentData, segmentInfos }) => {
             let segmentPatchedData;
+
             const offset = (period.start || 0) *
               (init ? (init.timescale || segment.timescale) :  segment.timescale);
-
             if (segmentData != null) {
               const responseData = segmentData instanceof Uint8Array ?
                 segmentData :
