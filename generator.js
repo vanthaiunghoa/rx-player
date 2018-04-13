@@ -91,7 +91,7 @@ const data = [
     }],
     overlays: [{
       start: 0,
-      end: 7906.4960000,
+      end: Number.MAX_VALUE,
       version: 1,
       element: {
         url: "http://127.0.0.1:8084/canal_plus_logo.png",
@@ -115,13 +115,13 @@ const data = [
     }],
     overlays: [{
       start: 0,
-      end: 9565.4960000,
+      end: Number.MAX_VALUE,
       version: 1,
       element: {
         url: "http://127.0.0.1:8084/canal_plus_logo.png",
         format: "png",
         xAxis: "85%",
-        yAxis: "5%",
+        yAxis: "85%",
         height: "",
         width: "10%",
       },
@@ -134,7 +134,7 @@ const data = [
     duration: 7823.0400000,
     overlays: [{
       start: 0,
-      end: 7906.4960000,
+      end: Number.MAX_VALUE,
       version: 1,
       element: {
         url: "http://127.0.0.1:8084/canal_plus_logo.png",
@@ -153,13 +153,13 @@ const data = [
     duration: 5639.3386666,
     overlays: [{
       start: 0,
-      end: 7906.4960000,
+      end: Number.MAX_VALUE,
       version: 1,
       element: {
         url: "http://127.0.0.1:8084/canal_plus_logo.png",
         format: "png",
         xAxis: "85%",
-        yAxis: "5%",
+        yAxis: "85%",
         height: "",
         width: "10%",
       },
