@@ -16,7 +16,7 @@ const PLAYER = (
   { videoElement, textTrackElement, overlayElement }
 ) => {
   const player = new RxPlayer({
-    limitVideoWidth: false,
+    limitVideoWidth: true,
     stopAtEnd: false,
     throttleWhenHidden: true,
     videoElement,
