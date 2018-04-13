@@ -13,6 +13,10 @@ const playListGenerator = function (
 
     for (let i = 0; i <= times - 1; i++) {
       for (let k = 0; k <= datas.length - 1; k++) {
+        datas[k].overlays.forEach((overlay) => {
+          overlay.start = datas[k].startTime + (somme * (i));
+          overlay.end = datas[k].endTime + (somme * (i));
+        });
         array.push(
           {
             url: datas[k].url,
@@ -99,7 +103,7 @@ const data = [
         url: "http://127.0.0.1:8084/canal_plus_logo.png",
         format: "png",
         xAxis: "85%",
-        yAxis: "5%",
+        yAxis: "85%",
         height: "",
         width: "10%",
       },
@@ -142,7 +146,7 @@ const data = [
         url: "http://127.0.0.1:8084/canal_plus_logo.png",
         format: "png",
         xAxis: "85%",
-        yAxis: "5%",
+        yAxis: "85%",
         height: "",
         width: "10%",
       },
