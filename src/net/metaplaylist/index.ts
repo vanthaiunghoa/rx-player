@@ -41,17 +41,22 @@ import patchBox from "./isobmff_patcher";
 
 type ITransportTypes = "dash"|"smooth";
 
-interface IMetaPlaylistContent {
-  url: string;
-  startTime: number;
-  endTime: number;
-  transport: ITransportTypes;
-  textTracks: [{
+interface IMetaPlaylist {
+  contents: Array<{
     url: string;
-    language: string;
-    mimeType: string;
-  }];
-  overlays: any;
+    startTime: number;
+    endTime: number;
+    transport: ITransportTypes;
+    textTracks: [{
+      url: string;
+      language: string;
+      mimeType: string;
+    }];
+    overlays: any;
+  }>;
+  attributes: {
+    timeShiftBufferDepth: number;
+  };
 }
 
 /**
@@ -59,14 +64,14 @@ interface IMetaPlaylistContent {
  * Returns an array of contents.
  * @param {string} data
  */
-function parseMetaPlaylistData(data: string): IMetaPlaylistContent[] {
+function parseMetaPlaylistData(data: string): IMetaPlaylist {
   let parsedMetaPlaylist;
   try {
     parsedMetaPlaylist = JSON.parse(data);
   } catch (error) {
     throw new Error("Bad MetaPlaylist file. Expected JSON.");
   }
-  const { contents } = parsedMetaPlaylist;
+  const { contents, attributes } = parsedMetaPlaylist;
   if (!Array.isArray(contents)) {
     throw new Error("Bad metaplaylist file.");
   }
@@ -75,13 +80,14 @@ function parseMetaPlaylistData(data: string): IMetaPlaylistContent[] {
       content.url == null ||
       content.startTime == null ||
       content.endTime == null ||
-      content.transport == null
+      content.transport == null ||
+      (attributes && attributes.timeShiftBufferDepth == null)
     ) {
       throw new Error("Bad metaplaylist file.");
     }
   });
 
-  return contents;
+  return { contents, attributes };
 }
 
 /**
@@ -131,7 +137,7 @@ export default function(options: IParserOptions = {}): ITransportPipelines {
         if (typeof response.responseData !== "string") {
           throw new Error("Parser input must be string.");
         }
-        const contents = parseMetaPlaylistData(response.responseData);
+        const { contents, attributes } = parseMetaPlaylistData(response.responseData);
         const manifestsInfos$ = contents.map((content) => {
           const transport = transports[content.transport];
           if (transport == null) {
@@ -183,7 +189,7 @@ export default function(options: IParserOptions = {}): ITransportPipelines {
               });
             });
             return Observable.combineLatest(parsedManifestsInfo).map((_contents) => {
-              const manifest = parseMetaManifest(_contents, url);
+              const manifest = parseMetaManifest(_contents, attributes, url);
               return {
                 manifest,
                 url,
