@@ -15,20 +15,17 @@
  */
 
 import { Observable } from "rxjs/Observable";
-import { ConnectableObservable } from "rxjs/observable/ConnectableObservable";
-import { Subscription } from "rxjs/Subscription";
 import { IMediaKeySession } from "../../../compat";
 import castToObservable from "../../../utils/castToObservable";
 import log from "../../../utils/log";
-import { ISessionEvent } from "../session";
 import SessionSet from "./abstract";
 import hashInitData from "./hash_init_data";
 
 // Cached data for a single MediaKeySession
 interface ISessionData {
   initData : number;
+  initDataType: string;
   session : IMediaKeySession|MediaKeySession;
-  eventSubscription : Subscription;
 }
 
 /**
@@ -36,6 +33,8 @@ interface ISessionData {
  * MediaKeySessions. This set allow to reuse sessions without re-
  * negotiating a license exchange if the key is already used in a
  * loaded session.
+ *
+ * TODO Add Cache maximum size
  * @class InMemorySessionsSet
  * @extends SessionSet
  */
@@ -66,9 +65,17 @@ export default class InMemorySessionsSet extends SessionSet<ISessionData> {
    * @param {number|Uint8Array} initData
    * @returns {MediaKeySession|null}
    */
-  get(initData : number|Uint8Array) : IMediaKeySession|MediaKeySession|null {
+  get(
+    initData : number|Uint8Array,
+    initDataType: string
+  ) : IMediaKeySession|MediaKeySession|null {
     const hash = hashInitData(initData);
-    const entry = this.find((e) => e.initData === hash);
+    const entry = this.find((e) => {
+      return(
+        e.initData === hash &&
+        e.initDataType === initDataType
+      );
+    });
     if (entry) {
       return entry.session;
     } else {
@@ -79,24 +86,22 @@ export default class InMemorySessionsSet extends SessionSet<ISessionData> {
   /**
    * @param {Uint8Array|Array.<number>|number} initData
    * @param {MediaKeySession} session
-   * @param {ConnectableObservable} sessionEvents
    */
   add(
     initData : Uint8Array|number[]|number,
-    session : IMediaKeySession|MediaKeySession,
-    sessionEvents : ConnectableObservable<Event|ISessionEvent>
+    initDataType : string,
+    session : IMediaKeySession|MediaKeySession
   ) : void {
     const hash = hashInitData(initData);
-    const currentSession = this.get(hash);
+    const currentSession = this.get(hash, initDataType);
     if (currentSession) {
       this.deleteAndClose(currentSession);
     }
 
-    const eventSubscription = sessionEvents.connect();
     const entry = {
       session,
       initData: hash,
-      eventSubscription,
+      initDataType,
     };
     log.debug("eme-mem-store: add session", entry);
     this._entries.push(entry);
@@ -106,8 +111,17 @@ export default class InMemorySessionsSet extends SessionSet<ISessionData> {
    * @param {string} sessionId
    * @returns {MediaKeySession|null}
    */
-  deleteById(sessionId : string) : IMediaKeySession|MediaKeySession|null {
-    const entry = this.find((e) => e.session.sessionId === sessionId);
+  deleteByInitData(
+    initData : Uint8Array,
+    initDataType: string
+  ) : IMediaKeySession|MediaKeySession|null {
+    const hash = hashInitData(initData);
+    const entry = this.find((e) => {
+      return(
+        e.initData === hash &&
+        e.initDataType === initDataType
+      );
+    });
     if (entry) {
       return this.delete(entry.session);
     } else {
@@ -127,11 +141,10 @@ export default class InMemorySessionsSet extends SessionSet<ISessionData> {
       return null;
     }
 
-    const { session, eventSubscription } = entry;
+    const { session } = entry;
     log.debug("eme-mem-store: delete session", entry);
     const idx = this._entries.indexOf(entry);
     this._entries.splice(idx, 1);
-    eventSubscription.unsubscribe();
     return session;
   }
 

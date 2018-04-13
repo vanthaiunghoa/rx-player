@@ -15,33 +15,24 @@
  */
 
 import { Observable } from "rxjs/Observable";
-import {
-  IMockMediaKeys,
-  setMediaKeys,
-} from "../../compat";
+import { setMediaKeys } from "../../compat";
 import log from "../../utils/log";
 import { $loadedSessions } from "./globals";
-import {
-  IInstanceInfo,
-  IKeySystemOption,
-} from "./key_system";
+import { IInstanceInfo } from "./key_system";
+import { IMediaKeysInfos } from "./session";
 
 /**
  * Set the MediaKeys object on the videoElement.
- * @param {MediaKeys} mediaKeys
- * @param {Object} mksConfig - MediaKeySystemConfiguration used
+ * @param {Object} mediaKeysInfos
  * @param {HTMLMediaElement} video
- * @param {Object} keySystem
  * @param {Object} instceInfos
  * @returns {Observable}
  */
 function setMediaKeysObs(
-  mediaKeys : IMockMediaKeys|MediaKeys,
-  mksConfig : MediaKeySystemConfiguration,
+  mediaKeysInfos: IMediaKeysInfos,
   video : HTMLMediaElement,
-  keySystem: IKeySystemOption,
   instceInfos: IInstanceInfo
-) : Observable<IMockMediaKeys|MediaKeys> {
+) : Observable<IMediaKeysInfos> {
   return Observable.defer(() => {
     const {
       $videoElement,
@@ -50,13 +41,21 @@ function setMediaKeysObs(
     const oldVideoElement = $videoElement;
     const oldMediaKeys = $mediaKeys;
 
+    const {
+      mediaKeys,
+      keySystemAccess,
+      keySystem,
+    } = mediaKeysInfos;
+
+    const mksConfig = keySystemAccess.getConfiguration();
+
     instceInfos.$mediaKeys = mediaKeys;
     instceInfos.$mediaKeySystemConfiguration = mksConfig;
     instceInfos.$keySystem = keySystem;
     instceInfos.$videoElement = video;
 
     if (video.mediaKeys === mediaKeys) {
-      return Observable.of(mediaKeys);
+      return Observable.of(mediaKeysInfos);
     }
 
     if (oldMediaKeys && oldMediaKeys !== mediaKeys) {
@@ -76,7 +75,7 @@ function setMediaKeysObs(
       mediaKeysSetter = setMediaKeys(video, mediaKeys);
     }
 
-    return mediaKeysSetter.mapTo(mediaKeys);
+    return mediaKeysSetter.mapTo(mediaKeysInfos);
   });
 }
 
