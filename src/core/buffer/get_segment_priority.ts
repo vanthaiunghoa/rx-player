@@ -37,7 +37,10 @@ export default function getSegmentPriority(
   }
 ) : number {
   const currentTime = clockTick.currentTime + clockTick.timeOffset;
-  const segmentStart = segment.time / segment.timescale;
+  let segmentStart = segment.time / segment.timescale;
+  if (segment.toto != null) {
+    segmentStart += segment.toto;
+  }
   const distance = segmentStart - currentTime;
 
   for (
