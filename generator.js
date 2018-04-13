@@ -2,12 +2,12 @@ const playListGenerator = function (
   original_playlist, // in format [{url, duration}, ...]
   baseTime, // in format timestamp e.g 1516961850
   occurences, // number of loops to reproduce
-  attributes,
 ) {
   function loopGeneration(datas, times) {
     const array = [];
     const durations = datas
       .map((data) => data.endTime - data.startTime);
+    const timeShitBufferDepth = durations.sort().slice(0, durations.length - 2).reduce((acc, val) => acc+val, 0);
     const somme = durations
       .reduce((a, b) => a + b, 0);
 
@@ -25,7 +25,7 @@ const playListGenerator = function (
         );
       }
     }
-    return array;
+    return { contents: array, attributes: { timeShitBufferDepth } };
   }
 
   const generated = [];
@@ -51,7 +51,7 @@ const playListGenerator = function (
       }
     );
   }
-  const contents = loopGeneration(generated, occurences);
+  const { contents, attributes } = loopGeneration(generated, occurences);
   const generatedAt = new Date();
   const mplVersion = "1.0";
   const metaplaylist = {
@@ -131,7 +131,7 @@ const data = [
   },
   {
     name: "Gardiens de la galaxie",
-    url : "https://hss-od.snl-lv3.canalplus-cdn.net/replay/cplus/ssd/cpl100002535-ant-1191566-1/ANT-1191566-1.ism/manifest",
+    url: "https://hss-od.snl-lv3.canalplus-cdn.net/replay/cplus/ssd/cpl100002535-ant-1191566-1/ANT-1191566-1.ism/manifest",
     transport: "smooth",
     duration: 7823.0400000,
     overlays: [{
@@ -169,8 +169,4 @@ const data = [
   },
 ];
 
-const attributes = {
-  timeShiftBufferDepth: 4 * 60 * 60,
-};
-
-playListGenerator(data, Date.now() / 1000 - 10000, 1, attributes);
+playListGenerator(data, Date.now() / 1000 - 10000, 1);
