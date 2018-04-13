@@ -28,7 +28,7 @@ if (__FEATURES__.SMOOTH) {
 if (__FEATURES__.DASH) {
   exported.dash = require("./dash/index.ts").default;
 }
-if (__FEATURES__.METAPLAYLIST) {
+if (true) {
   exported.metaplaylist = require("./metaplaylist/index.ts").default;
   // dash and smooth may be activated if metaplaylist is.
   exported.dash = require("./dash/index.ts").default;

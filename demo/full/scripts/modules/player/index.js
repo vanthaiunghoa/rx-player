@@ -6,6 +6,7 @@
  * application.
  */
 
+import getLicense from "./license.js";
 import { linkPlayerEventsToState } from "./events.js";
 
 const RxPlayer = window.RxPlayer;
@@ -75,6 +76,12 @@ const PLAYER = (
       player.loadVideo(Object.assign({
         textTrackElement,
         overlayElement,
+        keySystems: [
+          {
+            type: "widevine",
+            getLicense,
+          },
+        ],
         networkConfig: {
           segmentRetry: Infinity,
           manifestRetry: Infinity,
