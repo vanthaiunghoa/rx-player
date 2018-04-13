@@ -1,7 +1,8 @@
 const playListGenerator = function (
   original_playlist, // in format [{url, duration}, ...]
   baseTime, // in format timestamp e.g 1516961850
-  occurences // number of loops to reproduce
+  occurences, // number of loops to reproduce
+  attributes,
 ) {
   function loopGeneration(datas, times) {
     const array = [];
@@ -60,6 +61,7 @@ const playListGenerator = function (
       generatedAt,
     },
     contents,
+    attributes,
   };
   const result = JSON.stringify(metaplaylist, null, " ");
   console.log(result);
@@ -167,4 +169,8 @@ const data = [
   },
 ];
 
-playListGenerator(data, Date.now() / 1000 - 10000, 1);
+const attributes = {
+  timeShiftBufferDepth: 4 * 60 * 60,
+};
+
+playListGenerator(data, Date.now() / 1000 - 10000, 1, attributes);
