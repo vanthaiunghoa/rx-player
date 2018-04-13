@@ -64,16 +64,13 @@ export default class OverlayRepresentationIndex implements IRepresentationIndex 
    */
   getSegments(up : number, to : number) : ISegment[] {
     return this._overlays
-      .filter(({ start, end }) => {
-        return start < to && end > up;
-      })
       .map(overlayData => {
         return {
           isInit: false,
           id: "ov_" + JSON.stringify(overlayData), // XXX TODO Too ugly
           time: overlayData.start,
           duration: overlayData.end - overlayData.start,
-          timescale: 1000,
+          timescale: 1,
           media: "", // XXX TODO don't do that
           privateInfos: {
             overlayInfos: overlayData,

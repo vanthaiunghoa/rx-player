@@ -7,7 +7,7 @@ const playListGenerator = function (
     const array = [];
     const durations = datas
       .map((data) => data.endTime - data.startTime);
-    const timeShitBufferDepth = durations.sort().slice(0, durations.length - 2).reduce((acc, val) => acc+val, 0);
+    const timeShiftBufferDepth = durations.sort().slice(0, durations.length - 2).reduce((acc, val) => acc+val, 0);
     const somme = durations
       .reduce((a, b) => a + b, 0);
 
@@ -29,7 +29,7 @@ const playListGenerator = function (
         );
       }
     }
-    return { contents: array, attributes: { timeShitBufferDepth } };
+    return { contents: array, attributes: { timeShiftBufferDepth } };
   }
 
   const generated = [];
@@ -173,4 +173,4 @@ const data = [
   },
 ];
 
-playListGenerator(data, Date.now() / 1000 - 10000, 1);
+playListGenerator(data, 1523606400, 3);

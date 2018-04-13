@@ -346,8 +346,9 @@ export default function(options: IParserOptions = {}): ITransportPipelines {
         throw new Error("An overlay segment should have private infos.");
       }
       const { overlayInfos } = privateInfos;
+
       const end = segment.duration != null ?
-        segment.duration - segment.time : overlayInfos.end;
+        segment.duration + segment.time : overlayInfos.end;
       return Observable.of({
         segmentInfos: {
           time: segment.time,
