@@ -38,8 +38,12 @@ type MediaKeysRequirement = "optional" | "required" | "not-allowed";
 
 interface IKeySystemOption {
   type : string;
-  getLicense : (message : Uint8Array, messageType : string)
-    => Promise<BufferSource>|BufferSource;
+  getLicense : (
+    message : Uint8Array,
+    messageType : string,
+    initData : Uint8Array,
+    initDataType : string
+  ) => Promise<BufferSource>|BufferSource;
   serverCertificate? : BufferSource;
   persistentLicense? : boolean;
   licenseStorage? : IPersistedSessionStorage;

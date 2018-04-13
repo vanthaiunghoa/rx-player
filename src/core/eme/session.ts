@@ -111,6 +111,8 @@ function createSessionEvent(
 function sessionEventsHandler(
   session: IMediaKeySession|MediaKeySession,
   keySystem: IKeySystemOption,
+  initData: Uint8Array,
+  initDataType: string,
   errorStream: ErrorStream
 ): Observable<Event|ISessionEvent> {
   log.debug("eme: handle message events", session);
@@ -192,7 +194,8 @@ function sessionEventsHandler(
       );
 
       const getLicense$ : Observable<LicenseObject> = Observable.defer(() => {
-        const getLicense = keySystem.getLicense(message, messageType);
+        const getLicense =
+          keySystem.getLicense(message, messageType, initData, initDataType);
         return castToObservable(getLicense)
           .timeout(10 * 1000)
           .catch(error => {
@@ -248,6 +251,7 @@ function createSession(
   sessionType: MediaKeySessionType,
   keySystem: IKeySystemOption,
   initData: Uint8Array,
+  initDataType: string,
   errorStream: ErrorStream
 ): {
   session: IMediaKeySession|MediaKeySession;
@@ -258,16 +262,17 @@ function createSession(
     throw new Error("Invalid MediaKeys implementation: Missing createSession");
   }
   const session = (mediaKeys as any).createSession(sessionType); // TODO Weird TS Bug?
-  const sessionEvents = sessionEventsHandler(session, keySystem, errorStream)
-    .finally(() => {
-      // TODO subscribe to it
-      // Normally deleteAndClose should begin to emit (and do its side-effects)
-      // on subscription. It's however not the case here.
-      // If that was the case though, we should subscribe here.
-      $loadedSessions.deleteAndClose(session);
-      $storedSessions.delete(initData);
-    })
-    .publish();
+  const sessionEvents =
+    sessionEventsHandler(session, keySystem, initData, initDataType, errorStream)
+      .finally(() => {
+        // TODO subscribe to it
+        // Normally deleteAndClose should begin to emit (and do its side-effects)
+        // on subscription. It's however not the case here.
+        // If that was the case though, we should subscribe here.
+        $loadedSessions.deleteAndClose(session);
+        $storedSessions.delete(initData);
+      })
+      .publish();
 
   return { session, sessionEvents };
 }
@@ -294,7 +299,14 @@ function createSessionAndKeyRequest(
   const {
     session,
     sessionEvents,
-  } = createSession(mediaKeys, sessionType, keySystem, initData, errorStream);
+  } = createSession(
+    mediaKeys,
+    sessionType,
+    keySystem,
+    initData,
+    initDataType,
+    errorStream
+  );
 
   $loadedSessions.add(initData, session, sessionEvents);
   log.debug("eme: generate request", initDataType, initData);
@@ -391,7 +403,14 @@ function createPersistentSessionAndLoad(
   const {
     session,
     sessionEvents,
-  } = createSession(mediaKeys, sessionType, keySystem, initData, errorStream);
+  } = createSession(
+    mediaKeys,
+    sessionType,
+    keySystem,
+    initData,
+    initDataType,
+    errorStream
+  );
 
   return castToObservable(session.load(storedSessionId))
     .catch(() => Observable.of(false))
