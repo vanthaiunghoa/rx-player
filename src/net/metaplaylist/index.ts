@@ -26,6 +26,7 @@ import {
   IManifestLoaderArguments,
   IManifestParserArguments,
   IManifestParserObservable,
+  IOverlayParserObservable,
   IParserOptions,
   ISegmentLoaderArguments,
   ISegmentParserArguments,
@@ -40,21 +41,6 @@ import patchBox from "./isobmff_patcher";
 
 type ITransportTypes = "dash"|"smooth";
 
-export interface IMetaManifestInfo {
-    manifests: Array<{
-      manifest: Document;
-      url: string;
-      startTime: number;
-      endTime: number;
-      transport: ITransportTypes;
-      textTracks: [{
-        url: string;
-        language: string;
-        mimeType: string;
-      }];
-    }>;
-}
-
 interface IMetaPlaylistContent {
   url: string;
   startTime: number;
@@ -65,6 +51,7 @@ interface IMetaPlaylistContent {
     language: string;
     mimeType: string;
   }];
+  overlays: any;
 }
 
 /**
@@ -163,6 +150,7 @@ export default function(options: IParserOptions = {}): ITransportPipelines {
                 endTime: content.endTime,
                 transport: content.transport,
                 textTracks: content.textTracks,
+                overlays: content.overlays,
               };
             });
         });
@@ -190,15 +178,31 @@ export default function(options: IParserOptions = {}): ITransportPipelines {
                   startTime: manifestInfos.startTime,
                   endTime: manifestInfos.endTime,
                   textTracks: manifestInfos.textTracks,
+                  overlays: manifestInfos.overlays,
                 };
               });
             });
             return Observable.combineLatest(parsedManifestsInfo).map((_contents) => {
-                const manifest = parseMetaManifest(_contents, url);
-                return {
-                  manifest,
-                  url,
-                };
+              _contents.forEach(content => {
+                content.overlays = [{
+                  start: 0,
+                  end: Number.MAX_VALUE,
+                  version: 1,
+                  element: {
+                    url: "http://127.0.0.1:8084/canal_plus_logo.png",
+                    format: "png",
+                    xAxis: "85%",
+                    yAxis: "5%",
+                    height: "",
+                    width: "10%",
+                  },
+                }];
+              });
+              const manifest = parseMetaManifest(_contents, url);
+              return {
+                manifest,
+                url,
+              };
             });
           });
       },
@@ -330,11 +334,53 @@ export default function(options: IParserOptions = {}): ITransportPipelines {
       },
     };
 
-      return {
-        manifest: manifestPipeline,
-        audio: segmentPipeline,
-        video: segmentPipeline,
-        text: textTrackPipeline,
-        image: imageTrackPipeline,
-      };
+  const overlayPipeline = {
+    loader(
+      _args : ISegmentLoaderArguments
+    ) : ILoaderObservable<Uint8Array|ArrayBuffer|null> {
+      // For now, nothing is downloaded.
+      // Everything is parsed from the segment
+      return Observable.of({
+        type: "data" as "data",
+        value: { responseData: null },
+      });
+    },
+
+    parser(
+      args : ISegmentParserArguments<ArrayBuffer|Uint8Array|null>
+    ) : IOverlayParserObservable {
+      const { segment } = args;
+      const { privateInfos } = segment;
+      if (!privateInfos || privateInfos.overlayInfos == null) {
+        throw new Error("An overlay segment should have private infos.");
+      }
+      const { overlayInfos } = privateInfos;
+      const end = segment.duration != null ?
+        segment.duration - segment.time : overlayInfos.end;
+      return Observable.of({
+        segmentInfos: {
+          time: segment.time,
+          duration: segment.duration,
+          timescale: segment.timescale,
+        },
+        segmentData: {
+          data: [overlayInfos],
+          start: segment.time,
+          end,
+          timeOffset: 0,
+          timescale: segment.timescale,
+          type: "metadash",
+        },
+      });
+    },
+  };
+
+  return {
+    manifest: manifestPipeline,
+    audio: segmentPipeline,
+    video: segmentPipeline,
+    text: textTrackPipeline,
+    image: imageTrackPipeline,
+    overlay: overlayPipeline,
+  };
 }

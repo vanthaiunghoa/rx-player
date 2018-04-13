@@ -6,11 +6,15 @@
  * application.
  */
 
+import getLicense from "./license.js";
 import { linkPlayerEventsToState } from "./events.js";
 
 const RxPlayer = window.RxPlayer;
 
-const PLAYER = ({ $destroy, state }, { videoElement, textTrackElement }) => {
+const PLAYER = (
+  { $destroy, state },
+  { videoElement, textTrackElement, overlayElement }
+) => {
   const player = new RxPlayer({
     limitVideoWidth: false,
     stopAtEnd: false,
@@ -71,6 +75,13 @@ const PLAYER = ({ $destroy, state }, { videoElement, textTrackElement }) => {
     LOAD: (arg) => {
       player.loadVideo(Object.assign({
         textTrackElement,
+        overlayElement,
+        keySystems: [
+          {
+            type: "widevine",
+            getLicense,
+          },
+        ],
         networkConfig: {
           segmentRetry: Infinity,
           manifestRetry: Infinity,

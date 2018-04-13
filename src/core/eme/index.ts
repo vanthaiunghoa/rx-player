@@ -208,11 +208,13 @@ function createEME(
           ) {
             const {
               initData,
+              initDataType,
             } = (sessionManagementEvents as ISessionCreationEvent).value.sessionInfos;
             return handleSessionEvents(
               sessionManagementEvents.value.session,
               mediaKeysInfos.keySystem,
               new Uint8Array(initData),
+              initDataType,
               errorStream
             );
           }

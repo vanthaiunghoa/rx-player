@@ -91,6 +91,8 @@ type LicenseObject =
 function sessionEventsHandler(
   session: IMediaKeySession|MediaKeySession,
   keySystem: IKeySystemOption,
+  initData: Uint8Array,
+  initDataType: string,
   errorStream: ErrorStream
 ) : Observable<IMediaKeyMessageEvent> {
   log.debug("eme: handle message events", session);
@@ -177,7 +179,8 @@ function sessionEventsHandler(
       );
 
       const getLicense$ : Observable<LicenseObject> = Observable.defer(() => {
-        const getLicense = keySystem.getLicense(message, messageType);
+        const getLicense =
+          keySystem.getLicense(message, messageType, initData, initDataType);
         return castToObservable(getLicense)
           .timeout(10 * 1000)
           .catch(error => {
@@ -254,13 +257,15 @@ export function handleSessionEvents(
   session: MediaKeySession|IMediaKeySession,
   keySystem: IKeySystemOption,
   initData: Uint8Array,
+  initDataType: string,
   errorStream: ErrorStream
 ) : Observable<IMediaKeyMessageEvent> {
-  const sessionEvents = sessionEventsHandler(session, keySystem, errorStream)
-    .finally(() => {
-      $loadedSessions.deleteAndClose(session);
-      $storedSessions.delete(initData);
-    });
+  const sessionEvents =
+    sessionEventsHandler(session, keySystem, initData, initDataType, errorStream)
+      .finally(() => {
+        $loadedSessions.deleteAndClose(session);
+        $storedSessions.delete(initData);
+      });
 
   return sessionEvents;
 }
