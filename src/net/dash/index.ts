@@ -40,6 +40,7 @@ import {
   IManifestLoaderArguments,
   IManifestParserArguments,
   IManifestParserObservable,
+  IPeriodParserObservable,
   ISegmentLoaderArguments,
   ISegmentParserArguments,
   ITransportPipelines,
@@ -84,6 +85,24 @@ export default function(
         response.responseData;
       return Observable.of({
         manifest: dashManifestParser(data, url/*, contentProtectionParser*/),
+        url: response.url,
+      });
+    },
+  };
+
+  const periodPipeline = {
+    loader({ url }: IManifestLoaderArguments): ILoaderObservable<Document|string> {
+      return manifestLoader(url);
+    },
+    parser({ response, url }: IManifestParserArguments<Document|string>):
+      IPeriodParserObservable {
+      const data = typeof response.responseData === "string" ?
+        new DOMParser().parseFromString(response.responseData, "text/xml") :
+        response.responseData;
+      const manifest = dashManifestParser(data, url/*, contentProtectionParser*/);
+      return Observable.of({
+        manifest,
+        periods: manifest.periods,
         url: response.url,
       });
     },
@@ -201,6 +220,7 @@ export default function(
 
   return {
     manifest: manifestPipeline,
+    period: periodPipeline,
     audio: segmentPipeline,
     video: segmentPipeline,
     text: textTrackPipeline,

@@ -26,6 +26,7 @@ import Manifest, {
   Adaptation,
   Period,
 } from "../../manifest";
+import { UnloadedPeriod } from "../../manifest/period";
 import arrayIncludes from "../../utils/array-includes";
 import InitializationSegmentCache from "../../utils/initialization_segment_cache";
 import log from "../../utils/log";
@@ -58,6 +59,8 @@ import EVENTS, {
   IPeriodBufferClearedEvent,
   IPeriodBufferReadyEvent,
 } from "./stream_events";
+
+import getTransport from "../../net/metaplaylist";
 
 // Events coming from single PeriodBuffer
 type IPeriodBufferEvent =
@@ -120,7 +123,7 @@ export type IBufferHandlerEvent =
  * clean it for potentially very long sessions.
  */
 export default function BuffersHandler(
-  content : { manifest : Manifest; period : Period },
+  content : { manifest : Manifest; period : Period|UnloadedPeriod },
   clock$ : Observable<IBufferClockTick>,
   wantedBufferAhead$ : Observable<number>,
   bufferManager : BufferManager,
@@ -211,7 +214,7 @@ export default function BuffersHandler(
    */
   function manageEveryBuffers(
     bufferType : IBufferType,
-    basePeriod : Period
+    basePeriod : Period|UnloadedPeriod
   ) : Observable<IMultiplePeriodBuffersEvent> {
     /**
      * Keep a PeriodList for cases such as seeking ahead/before the
@@ -220,7 +223,8 @@ export default function BuffersHandler(
      * from the new initial period.
      * @type {ConsecutivePeriodList}
      */
-    const periodList = new SortedList<Period>((a, b) => a.start - b.start);
+    const periodList =
+      new SortedList<Period>((a, b) => a.start - b.start);
 
     /**
      * Returns true if the given time is either:
@@ -248,7 +252,20 @@ export default function BuffersHandler(
      */
     const destroyCurrentBuffers = new Subject<void>();
 
-    const restartBuffers$ = clock$
+    const currentBuffers$ = manageConsecutivePeriodBuffers(
+      bufferType,
+      basePeriod,
+      destroyCurrentBuffers
+    ).do((message) => {
+      if (message.type === "periodBufferReady") {
+        periodList.add(message.value.period);
+      } else if (message.type === "periodBufferCleared") {
+        periodList.removeFirst(message.value.period);
+      }
+    }).share(); // as always, with side-effects
+
+    const restartBuffers$ = currentBuffers$.take(1).mergeMap(() => {
+      return clock$
 
       .filter(({ currentTime, timeOffset }) => {
         if (!manifest.getPeriodForTime(timeOffset + currentTime)) {
@@ -276,20 +293,35 @@ export default function BuffersHandler(
         return manageEveryBuffers(bufferType, newInitialPeriod);
         }
       });
-
-    const currentBuffers$ = manageConsecutivePeriodBuffers(
-      bufferType,
-      basePeriod,
-      destroyCurrentBuffers
-    ).do((message) => {
-      if (message.type === "periodBufferReady") {
-        periodList.add(message.value.period);
-      } else if (message.type === "periodBufferCleared") {
-        periodList.removeFirst(message.value.period);
-      }
-    }).share(); // as always, with side-effects
+    });
 
     return Observable.merge(currentBuffers$, restartBuffers$);
+  }
+
+  function loadPeriod(unloadedPeriod: UnloadedPeriod): Observable<Period> {
+    // return Observable.of(UnloadedPeriod);
+    const loader = getTransport().period.loader;
+    // const parser = getTransport().period.parser;
+    return loader({
+      url: unloadedPeriod.content.url,
+      transportType: unloadedPeriod.content.transport,
+    })
+    .filter((res) => res.type === "response")
+    .mergeMap((res) => {
+      const data = res.value.responseData;
+      const url = res.value.url;
+      const args = {
+        response: {
+          responseData: data,
+        },
+        url,
+        transportType: unloadedPeriod.content.transport,
+        basePeriod: unloadedPeriod,
+      };
+      return getTransport().period.parser(args).map((periods) => {
+        return periods.periods[0];
+      });
+    });
   }
 
   /**
@@ -326,7 +358,7 @@ export default function BuffersHandler(
    */
   function manageConsecutivePeriodBuffers(
     bufferType : IBufferType,
-    basePeriod : Period,
+    basePeriod : Period|UnloadedPeriod,
     destroy$ : Observable<void>
   ) : Observable<IMultiplePeriodBuffersEvent> {
     log.info("creating new Buffer for", bufferType, basePeriod);
@@ -341,7 +373,7 @@ export default function BuffersHandler(
      * Emits the Period of the next Period Buffer when it can be created.
      * @type {Subject}
      */
-    const createNextPeriodBuffer$ = new Subject<Period>();
+    const createNextPeriodBuffer$ = new Subject<Period|UnloadedPeriod>();
 
     /**
      * Emits when the Buffers for the next Periods should be destroyed, if
@@ -393,47 +425,57 @@ export default function BuffersHandler(
      */
     const killCurrentBuffer$ = Observable.merge(endOfCurrentBuffer$, destroyAll$);
 
-    const periodBuffer$ = createPeriodBuffer(bufferType, basePeriod, adaptation$)
-      .mergeMap((
-        evt : IPeriodBufferEvent
-      ) : Observable<IMultiplePeriodBuffersEvent> => {
-        const { type } = evt;
-        if (type === "full-buffer") {
-          /**
-           * The Period coming just after the current one.
-           * @type {Period|undefined}
-           */
-          const nextPeriod = manifest.getPeriodAfter(basePeriod);
+    const periodBuffer$ = (_period: Period) => {
+      return createPeriodBuffer(bufferType, _period, adaptation$)
+        .mergeMap((
+          evt : IPeriodBufferEvent
+        ) : Observable<IMultiplePeriodBuffersEvent> => {
+          const { type } = evt;
+          if (type === "full-buffer") {
+            /**
+             * The Period coming just after the current one.
+             * @type {Period|undefined}
+             */
+            const nextPeriod = manifest.getPeriodAfter(_period);
 
-          if (nextPeriod == null) {
-            // no more period, emits  event
-            return Observable.of(EVENTS.bufferComplete(bufferType));
-          } else {
-            // current buffer is full, create the next one if not
-            createNextPeriodBuffer$.next(nextPeriod);
+            if (nextPeriod == null) {
+              // no more period, emits  event
+              return Observable.of(EVENTS.bufferComplete(bufferType));
+            } else {
+              // current buffer is full, create the next one if not
+              createNextPeriodBuffer$.next(nextPeriod);
+            }
+          } else if (type === "active-buffer") {
+            // current buffer is active, destroy next buffer if created
+            destroyNextBuffers$.next();
           }
-        } else if (type === "active-buffer") {
-          // current buffer is active, destroy next buffer if created
-          destroyNextBuffers$.next();
-        }
-        return Observable.of(evt);
-      })
-      .share();
+          return Observable.of(evt);
+        })
+        .share();
+    };
 
     /**
      * Buffer for the current Period.
      * @type {Observable}
      */
     const currentBuffer$ : Observable<IMultiplePeriodBuffersEvent> =
-      Observable.of(EVENTS.periodBufferReady(bufferType, basePeriod, adaptation$))
-        .concat(periodBuffer$)
-        .takeUntil(killCurrentBuffer$)
-        .concat(
-          Observable.of(EVENTS.periodBufferCleared(bufferType, basePeriod))
-            .do(() => {
-              log.info("destroying buffer for", bufferType, basePeriod);
-            })
-        );
+      (
+        (basePeriod as Period).id ?
+          Observable.of(basePeriod as Period) :
+          loadPeriod(basePeriod as UnloadedPeriod)
+      )
+        .mergeMap((__period) => {
+          return Observable.of(
+            EVENTS.periodBufferReady(bufferType, __period, adaptation$))
+          .concat(periodBuffer$(__period))
+          .takeUntil(killCurrentBuffer$)
+          .concat(
+            Observable.of(EVENTS.periodBufferCleared(bufferType, __period))
+              .do(() => {
+                log.info("destroying buffer for", bufferType, __period);
+              })
+          );
+        });
 
     return Observable.merge(
       currentBuffer$,
@@ -652,7 +694,7 @@ function getFirstDeclaredMimeType(adaptation : Adaptation) : string {
  */
 function createNativeSourceBuffersForPeriod(
   sourceBufferManager : SourceBufferManager,
-  period : Period
+  period : Period|UnloadedPeriod
 ) : void {
   Object.keys(period.adaptations).forEach(bufferType => {
     if (SourceBufferManager.isNative(bufferType)) {

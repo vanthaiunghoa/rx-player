@@ -15,12 +15,17 @@
  */
 
 import { Observable } from "rxjs/Observable";
+import { areRangesOverlapping } from "../../utils/ranges";
 import request from "../../utils/request";
+
+import Period from "../../manifest/period";
 
 import objectAssign = require("object-assign");
 
 import { IPrivateInfos, ISegment } from "../../manifest/representation_index/interfaces";
-import parseMetaManifest from "../../parsers/manifest/metaplaylist";
+import parseMetaManifest, {
+  transformPeriod
+} from "../../parsers/manifest/metaplaylist";
 import {
   ILoaderObservable,
   ILoaderResponse,
@@ -29,6 +34,9 @@ import {
   IManifestParserArguments,
   IManifestParserObservable,
   IParserOptions,
+  IPeriodLoaderArguments,
+  IPeriodParserArguments,
+  IPeriodParserObservable,
   ISegmentLoaderArguments,
   ISegmentParserArguments,
   ITransportPipelines,
@@ -203,32 +211,51 @@ export default function(options: IParserOptions = {}): ITransportPipelines {
         if (typeof response.responseData !== "string") {
           throw new Error("Parser input must be string.");
         }
+        const now = Date.now() / 1000;
+        const beforeNow = now - 60;
+        const afterNow = now + 60;
         const { contents, attributes } = parseMetaPlaylistData(response.responseData);
         const contents$ = contents.map((content) => {
-          const transport = transports[content.transport];
-          if (transport == null) {
-            throw new Error(
-              "Transport" + content.transport + "not supported in MetaPlaylist.");
-          }
-          const loader = transport.manifest.loader;
 
-          return loader({ url: content.url })
-            .filter((res): res is ILoaderResponse<Document> => res.type === "response")
-            .mergeMap((res) => {
-              const parser = transports[content.transport].manifest.parser;
-              const fakeResponse = {
-                responseData: res.value.responseData,
-              };
+          const mustBeLoaded = areRangesOverlapping(
+            { start: beforeNow, end: afterNow },
+            { start: content.startTime, end: content.endTime }
+          );
 
-              return parser({ response: fakeResponse, url: content.url })
-                .map((mpd) => {
-                  const type = mpd.manifest.type;
-                  if (type !== "static") {
-                    throw new Error("Content from metaplaylist is not static.");
-                  }
-                  return objectAssign(content, { manifest: mpd.manifest });
-                });
+          if (mustBeLoaded) {
+            const transport = transports[content.transport];
+            if (transport == null) {
+              throw new Error(
+                "Transport" + content.transport + "not supported in MetaPlaylist.");
+            }
+            const loader = transport.manifest.loader;
+
+            return loader({ url: content.url })
+              .filter((res): res is ILoaderResponse<Document> => res.type === "response")
+              .mergeMap((res) => {
+                const parser = transports[content.transport].manifest.parser;
+                const fakeResponse = {
+                  responseData: res.value.responseData,
+                };
+
+                return parser({ response: fakeResponse, url: content.url })
+                  .map((mpd) => {
+                    const type = mpd.manifest.type;
+                    if (type !== "static") {
+                      throw new Error("Content from metaplaylist is not static.");
+                    }
+                    return objectAssign(content, { manifest: mpd.manifest });
+                  });
+              });
+          } else {
+            return Observable.of({
+                url: content.url,
+                transport: content.transport,
+                startTime: content.startTime,
+                endTime: content.endTime,
+                textTracks: content.textTracks,
             });
+          }
         });
 
         return Observable.combineLatest(contents$).map((combinedContents) => {
@@ -237,6 +264,40 @@ export default function(options: IParserOptions = {}): ITransportPipelines {
             manifest,
             url,
           };
+        });
+      },
+    };
+
+    const periodPipeline = {
+      loader(
+        { url, transportType }: IPeriodLoaderArguments
+      ) : ILoaderObservable<Document|string> {
+        const transport = transports[transportType];
+        if (transport == null) {
+          throw new Error(
+            "Transport" + transportType + "not supported in MetaPlaylist.");
+        }
+        const loader = transport.period.loader;
+        return loader({ url, transportType });
+      },
+      parser(args: IPeriodParserArguments<Document|string>) : IPeriodParserObservable {
+        const transport = transports[args.transportType];
+        if (transport == null) {
+          throw new Error(
+            "Transport" + args.transportType + "not supported in MetaPlaylist.");
+        }
+        const parser = transport.period.parser;
+        return parser(args).map((periodResult) => {
+          const content = args.basePeriod.content;
+          content.manifest = periodResult.manifest;
+          const period = transformPeriod(
+            periodResult.periods[0],
+            content,
+            content.contentEnding
+          );
+          args.basePeriod = new Period(period);
+          periodResult.periods = [args.basePeriod];
+          return periodResult;
         });
       },
     };
@@ -375,6 +436,7 @@ export default function(options: IParserOptions = {}): ITransportPipelines {
 
       return {
         manifest: manifestPipeline,
+        period: periodPipeline,
         audio: segmentPipeline,
         video: segmentPipeline,
         text: textTrackPipeline,

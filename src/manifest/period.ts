@@ -48,6 +48,14 @@ export interface IPeriodArguments {
   duration?: number;
 }
 
+export interface IUnloadedPeriodArguments {
+  id: string;
+  adaptations: IAdaptationArguments[];
+  start: number;
+  content: any;
+  duration?: number;
+}
+
 /**
  * @param {Array.<Object>} adaptations
  * @returns {Object}
@@ -204,5 +212,26 @@ export default class Period {
 
   getAdaptation(wantedId : number|string) : Adaptation|undefined {
     return arrayFind(this.getAdaptations(), ({ id }) => wantedId === id);
+  }
+}
+
+export class UnloadedPeriod {
+  public duration? : number;
+  public start : number;
+  public end? : number;
+  public content : string;
+
+  /**
+   * @constructor
+   * @param {Object} args
+   */
+  constructor(args : IUnloadedPeriodArguments) {
+    this.duration = args.duration;
+    this.start = args.start;
+    this.content = args.content;
+
+    if (this.duration != null && this.start != null) {
+      this.end = this.start + this.duration;
+    }
   }
 }

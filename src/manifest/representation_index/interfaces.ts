@@ -18,7 +18,7 @@ import Manifest, {
   Adaptation,
   Representation,
 } from "../../manifest";
-import Period from "../period";
+import Period, { UnloadedPeriod } from "../period";
 
 export type IMetaPlaylistTransportTypePrivateInfos = "dash"|"smooth";
 
@@ -38,8 +38,8 @@ export interface ISmoothInitSegmentPrivateInfos {
 }
 
 export interface IBaseContentInfos {
-  manifest: Manifest;
-  period?: Period;
+  manifest?: Manifest;
+  period?: Period|UnloadedPeriod;
   adaptation?: Adaptation;
   representation?: Representation;
 }

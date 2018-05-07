@@ -60,6 +60,7 @@ import Manifest, {
   Adaptation,
   Period,
   Representation,
+  UnloadedPeriod,
 } from "../../manifest";
 import {
   fromWallClockTime,

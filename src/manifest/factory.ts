@@ -119,9 +119,9 @@ function checkAdaptations(
     .filter(({ representations }) => representations.length);
 
   // 4. throw if no adaptation
-  if (adaptations.length === 0) {
-    throw new MediaError("MANIFEST_PARSE_ERROR", null, true);
-  }
+  // if (adaptations.length === 0) {
+  //   throw new MediaError("MANIFEST_PARSE_ERROR", null, true);
+  // }
 
   return adaptations;
 }

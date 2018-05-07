@@ -132,12 +132,22 @@ export interface IParsedPeriod {
   bitstreamSwitching? : boolean;
 }
 
+export interface IIncompleteParserPeriod {
+    // required
+    start : number;
+    end? : number;
+    adaptations : IParsedAdaptation[];
+    // optional
+    duration? : number;
+    content: any;
+}
+
 export interface IParsedManifest {
   // required
   availabilityStartTime : number;
   duration: number;
   id: string;
-  periods: IParsedPeriod[];
+  periods: Array<IParsedPeriod|IIncompleteParserPeriod>;
   transportType: string; // "smooth", "dash" etc.
   type: string; // "static" or "dynamic" TODO isLive?
   uris: string[]; // uris where the manifest can be refreshed

@@ -23,6 +23,8 @@ import Adaptation, {
   AdaptationType,
 } from "./adaptation";
 import Period, {
+  IUnloadedPeriodArguments,
+  UnloadedPeriod,
   IPeriodArguments,
 } from "./period";
 import Representation from "./representation";
@@ -52,7 +54,7 @@ interface IManifestArguments {
   duration : number;
   minimumTime? : number;
   id : string;
-  periods : IPeriodArguments[];
+  periods : Array<(IPeriodArguments|IUnloadedPeriodArguments)>;
   presentationLiveGap? : number;
   suggestedPresentationDelay? : number;
   timeShiftBufferDepth? : number;
@@ -69,7 +71,7 @@ export default class Manifest {
   public readonly id : string;
   public readonly transport : string;
   public readonly adaptations : ManifestAdaptations;
-  public readonly periods : Period[];
+  public readonly periods : Array<Period|UnloadedPeriod>;
   public readonly isLive : boolean;
   public uris : string[];
   public suggestedPresentationDelay? : number;
@@ -91,7 +93,9 @@ export default class Manifest {
 
     // TODO Real period management
     this.periods = args.periods.map((period) => {
-      return new Period(period);
+      return period.id ?
+        new Period(period) :
+        new UnloadedPeriod(period as IUnloadedPeriodArguments);
     });
 
     /**
@@ -209,7 +213,7 @@ export default class Manifest {
    * @param {number} time
    * @returns {Period|undefined}
    */
-  getPeriodForTime(time : number) : Period|undefined {
+  getPeriodForTime(time : number) : Period|UnloadedPeriod|undefined {
     return arrayFind(this.periods, (period) => {
       return time >= period.start &&
         (period.end == null || period.end > time);
@@ -222,7 +226,7 @@ export default class Manifest {
    * @param {Period} period
    * @returns {Period|null}
    */
-  getPeriodAfter(period : Period) : Period|null {
+  getPeriodAfter(period : Period|UnloadedPeriod) : Period|UnloadedPeriod|null {
     const endOfPeriod = period.end;
     if (endOfPeriod == null) {
       return null;
@@ -253,10 +257,13 @@ export default class Manifest {
    */
   getAdaptations() : Adaptation[] {
     const firstPeriod = this.periods[0];
-    if (!firstPeriod) {
+    if (
+      !firstPeriod ||
+      (firstPeriod as Period).adaptations === undefined
+    ) {
       return [];
     }
-    const adaptationsByType = firstPeriod.adaptations;
+    const adaptationsByType = (firstPeriod as Period).adaptations;
     const adaptationsList : Adaptation[] = [];
     for (const adaptationType in adaptationsByType) {
       if (adaptationsByType.hasOwnProperty(adaptationType)) {
@@ -322,10 +329,19 @@ export default class Manifest {
     for (let i = 0; i < oldPeriods.length; i++) {
       const oldPeriod = oldPeriods[i];
       const newPeriod =
-        arrayFind(newPeriods, a => a.id === oldPeriod.id);
+        arrayFind(newPeriods, a => {
+          if (
+            (a as Period).id !== undefined &&
+            (oldPeriod as Period).id !== undefined
+          ) {
+            return (a as Period).id === (oldPeriod as Period).id;
+          }
+          return false;
+        });
 
       if (!newPeriod) {
-        log.info(`Period ${oldPeriod.id} not found after update. Removing.`);
+        log.info(`Period ${(oldPeriod as Period).id || ""} \
+        not found after update. Removing.`);
         oldPeriods.splice(i, 1);
         i--;
       } else {
@@ -376,14 +392,14 @@ export default class Manifest {
         for (let i = 0; i < newPeriods.length - 1; i++) {
           const newPeriod = newPeriods[i];
           if (newPeriod.start > lastOldPeriod.start) {
-            log.info(`Adding new period ${newPeriod.id}`);
+            log.info(`Adding new period ${(newPeriod as Period).id || ""}`);
             this.periods.push(newPeriod);
           }
         }
       } else {
         for (let i = 0; i < newPeriods.length - 1; i++) {
           const newPeriod = newPeriods[i];
-          log.info(`Adding new period ${newPeriod.id}`);
+          log.info(`Adding new period ${(newPeriod as Period).id || ""}`);
           this.periods.push(newPeriod);
         }
       }
@@ -394,6 +410,7 @@ export default class Manifest {
 export {
   // classes
   Period,
+  UnloadedPeriod,
   Adaptation,
   Representation,
 

@@ -21,9 +21,14 @@ import Manifest, {
   ISegment,
   Period,
   Representation,
+  UnloadedPeriod,
 } from "../manifest";
 import { IBifThumbnail } from "../parsers/images/bif";
-import { IParsedManifest } from "../parsers/manifest/types";
+import {
+  IIncompleteParserPeriod,
+  IParsedManifest,
+  IParsedPeriod
+} from "../parsers/manifest/types";
 
 // contains timings info on a single audio/video/text/image segment
 export interface ISegmentTimingInfos {
@@ -47,11 +52,16 @@ export interface IManifestLoaderArguments {
   url : string;
 }
 
+export interface IPeriodLoaderArguments {
+  url: string;
+  transportType: "dash" | "smooth";
+}
+
 // for every other pipelines
 export interface ISegmentLoaderArguments {
   init? : ISegmentTimingInfos;
   manifest : Manifest;
-  period : Period;
+  period : Period|UnloadedPeriod;
   adaptation : Adaptation;
   representation : Representation;
   segment : ISegment;
@@ -106,6 +116,13 @@ export interface IManifestParserArguments<T> {
   url : string;
 }
 
+export interface IPeriodParserArguments<T> {
+  response : ILoaderResponseValue<T>;
+  url : string;
+  basePeriod: any;
+  transportType: "dash" | "smooth";
+}
+
 export interface ISegmentParserArguments<T> {
   response : ILoaderResponseValue<T>;
   manifest : Manifest;
@@ -113,7 +130,7 @@ export interface ISegmentParserArguments<T> {
   representation : Representation;
   segment : ISegment;
   init? : ISegmentTimingInfos;
-  period : Period;
+  period : Period|UnloadedPeriod;
 }
 
 // -- response
@@ -123,7 +140,13 @@ export interface IManifestResult {
   url? : string;
 }
 
+export interface IPeriodResult {
+  periods: Array<IParsedPeriod|IIncompleteParserPeriod>;
+  url? : string;
+}
+
 export type IManifestParserObservable = Observable<IManifestResult>;
+export type IPeriodParserObservable = Observable<IPeriodResult>;
 
 export type SegmentParserObservable = Observable<{
   segmentData : Uint8Array|ArrayBuffer;
@@ -168,6 +191,13 @@ interface ITransportManifestPipeline {
     IManifestParserObservable;
 }
 
+interface ITransportPeriodPipeline {
+  loader: (x: IPeriodLoaderArguments) =>
+    ILoaderObservable<Document|string>;
+  parser: (x : IPeriodParserArguments<Document|string>) =>
+    IPeriodParserObservable;
+}
+
 interface ITransportSegmentPipelineBase<T> {
   loader : (x : ISegmentLoaderArguments) => ILoaderObservable<T>;
   parser: (x : ISegmentParserArguments<T>) => SegmentParserObservable;
@@ -207,6 +237,7 @@ export type ITransportPipeline =
 
 export interface ITransportPipelines {
   manifest: ITransportManifestPipeline;
+  period: ITransportPeriodPipeline;
   audio : ITransportAudioSegmentPipeline;
   video : ITransportVideoSegmentPipeline;
   text : ITransportTextSegmentPipeline;
