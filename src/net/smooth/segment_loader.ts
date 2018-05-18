@@ -78,10 +78,10 @@ const generateSegmentLoader = (
   init,
 } : ISegmentLoaderArguments) : ILoaderObservable<Uint8Array|ArrayBuffer|null> => {
   if (segment.isInit) {
-    if (!segment.privateInfos || segment.privateInfos.type !== "smooth-init") {
+    if (!segment.privateInfos || !segment.privateInfos.smoothInit) {
       throw new Error("Smooth: Invalid segment format");
     }
-    const privateInfos = segment.privateInfos;
+    const privateInfos = segment.privateInfos.smoothInit;
     let responseData : Uint8Array;
     const protection = privateInfos.protection;
 
@@ -92,7 +92,7 @@ const generateSegmentLoader = (
         representation.width || 0,
         representation.height || 0,
         72, 72, 4, // vRes, hRes, nal
-        privateInfos.codecPrivateData,
+        privateInfos.codecPrivateData || "",
         protection && protection.keyId,     // keyId
         protection && protection.keySystems // pssList
       );
@@ -104,7 +104,7 @@ const generateSegmentLoader = (
         privateInfos.bitsPerSample || 0,
         privateInfos.packetSize || 0,
         privateInfos.samplingRate || 0,
-        privateInfos.codecPrivateData,
+        privateInfos.codecPrivateData || "",
         protection && protection.keyId,     // keyId
         protection && protection.keySystems // pssList
       );
