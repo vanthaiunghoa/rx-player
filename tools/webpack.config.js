@@ -1,6 +1,7 @@
 /* eslint-env node */
 
 const ClosureCompiler = require("webpack-closure-compiler");
+const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
 const webpack = require("webpack");
 
 const RXP_ENV = process.env.RXP_ENV || "production";
@@ -43,11 +44,15 @@ module.exports = {
     rules: [
       {
         test: /\.tsx?$/,
-        use: "ts-loader",
+        loader: "ts-loader",
+        options: {
+          transpileOnly: true,
+        },
       },
     ],
   },
   plugins: [
+    new ForkTsCheckerWebpackPlugin(),
     new webpack.DefinePlugin({
       "__FEATURES__": {
         SMOOTH: isBarebone ?
