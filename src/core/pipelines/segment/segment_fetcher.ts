@@ -44,6 +44,16 @@ import BasePipeline, {
   IPipelineOptions,
 } from "../core_pipeline";
 
+export interface IInbandStreamEvent {
+  schemeId: string;
+  value: string;
+  timescale: number;
+  presentationTimeDelta: number;
+  eventDuration: number;
+  id: number;
+  messageData: Uint8Array;
+}
+
 interface ISegmentResponseParsed<T> {
   segmentData : T;
   segmentInfos : {
@@ -51,6 +61,7 @@ interface ISegmentResponseParsed<T> {
     time : number;
     timescale : number;
   };
+  segmentEvent? : IInbandStreamEvent;
 }
 
 // Response that should be emitted by the given Pipeline

@@ -23,6 +23,7 @@ import { of as observableOf } from "rxjs";
 import features from "../../features";
 import {
   getMDHDTimescale,
+  parseEmsg,
   parseSidx,
 } from "../../parsers/containers/isobmff";
 import dashManifestParser from "../../parsers/manifest/dash";
@@ -121,9 +122,11 @@ export default function(
       const sidxSegments = parseSidx(segmentData, indexRange ? indexRange[0] : 0);
 
       if (!segment.isInit) {
+        const initSegmentEvent = parseEmsg(segmentData);
         return observableOf({
           segmentData,
           segmentInfos: getISOBMFFTimingInfos(segment, segmentData, sidxSegments, init),
+          segmentEvent: initSegmentEvent,
         });
       }
 
@@ -132,9 +135,11 @@ export default function(
         addNextSegments(representation, nextSegments);
       }
       const timescale = getMDHDTimescale(segmentData);
+      const segmentEvent = parseEmsg(segmentData);
       return observableOf({
         segmentData,
         segmentInfos: timescale > 0 ? { time: -1, duration: 0, timescale } : null,
+        segmentEvent,
       });
     },
   };

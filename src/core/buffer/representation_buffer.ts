@@ -42,6 +42,7 @@ import Manifest, {
 } from "../../manifest";
 import SimpleSet from "../../utils/simple_set";
 import {
+  IInbandStreamEvent,
   IPrioritizedSegmentFetcher,
   ISegmentResponse,
 } from "../pipelines";
@@ -66,6 +67,11 @@ export interface IBufferEventAddedSegment<T> {
     segment : ISegment; // The concerned Segment
     segmentData : T; // The data pushed
   };
+}
+
+export interface IBufferInbandStreamEvent {
+  type : "inband-stream-event";
+  value : IInbandStreamEvent;
 }
 
 // The Manifest needs to be refreshed.
@@ -129,7 +135,8 @@ type IBufferStateEvent =
 // Events emitted by the Buffer
 export type IRepresentationBufferEvent<T> =
   IBufferEventAddedSegment<T> |
-  IBufferStateEvent;
+  IBufferStateEvent |
+  IBufferInbandStreamEvent;
 
 // Item emitted by the Buffer's clock$
 export interface IBufferClockTick {
@@ -206,6 +213,7 @@ interface ISegmentInfos {
 interface ISegmentObject<T> {
   segmentData : T|null; // What will be pushed to the SourceBuffer
   segmentInfos : ISegmentInfos|null; // temporal information
+  segmentEvent? : IInbandStreamEvent;
 }
 
 // Informations about a loaded Segment
@@ -317,6 +325,23 @@ export default function RepresentationBuffer<T>({
       .pipe(finalize(() => {
         currentSegmentRequest = null;
       }));
+  }
+
+  /**
+   * Returns stream events.
+   * @param data
+   */
+  function handleInbandStreamEvent(
+    value: ISegmentObject<T>
+  ): Observable<IBufferInbandStreamEvent> {
+    const { segmentEvent } = value;
+    if (segmentEvent) {
+      return observableOf({
+        type: "inband-stream-event" as "inband-stream-event",
+        value: segmentEvent,
+      });
+    }
+    return EMPTY;
   }
 
   /**
@@ -565,7 +590,12 @@ export default function RepresentationBuffer<T>({
    */
   const bufferQueue$ = startQueue$.pipe(
     switchMap(requestSegments),
-    mergeMap(appendSegment)
+    mergeMap((args) => {
+      return observableConcat(
+        handleInbandStreamEvent(args.value),
+        appendSegment(args)
+      );
+    })
   );
 
   return observableMerge(bufferState$, bufferQueue$)

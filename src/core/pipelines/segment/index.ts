@@ -29,6 +29,7 @@ import applyPrioritizerToSegmentFetcher, {
 } from "./prioritized_segment_fetcher";
 import ObservablePrioritizer from "./prioritizer";
 import createSegmentFetcher, {
+  IInbandStreamEvent,
   ISegmentResponse,
 } from "./segment_fetcher";
 
@@ -122,4 +123,5 @@ export {
   IPipelineOptions,
   IPrioritizedSegmentFetcher,
   ISegmentResponse,
+  IInbandStreamEvent
 };
