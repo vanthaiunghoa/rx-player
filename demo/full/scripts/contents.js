@@ -16,7 +16,7 @@ export default [
   },
   {
     "name": "DASH-IF SegmentTemplate",
-    "url": "http://vm2.dashif.org/livesim-dev/periods_1/testpic_2s/Manifest.mpd",
+    "url": "http://vm2.dashif.org/livesim/scte35_2/testpic_2s/Manifest.mpd",
     "transport": "dash",
     "live": true,
   },
