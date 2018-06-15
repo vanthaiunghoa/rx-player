@@ -158,7 +158,7 @@ export interface IContentProtectionSmooth {
  */
 function createSmoothStreamingParser(
   parserOptions : IHSSParserConfiguration = {}
-) : (manifest : Document, url : string) => IParsedManifest {
+) : (manifest : Document, url : string|null) => IParsedManifest {
 
   const SUGGESTED_PERSENTATION_DELAY =
     parserOptions.suggestedPresentationDelay == null ?
@@ -514,8 +514,8 @@ function createSmoothStreamingParser(
     return parsedAdaptation;
   }
 
-  function parseFromDocument(doc : Document, url : string) : IParsedManifest {
-    const rootURL = normalizeBaseURL(url);
+  function parseFromDocument(doc : Document, url : string|null) : IParsedManifest {
+    const rootURL = normalizeBaseURL(url || "");
     const root = doc.documentElement;
     assert(
       root.nodeName === "SmoothStreamingMedia",
@@ -664,7 +664,7 @@ function createSmoothStreamingParser(
       timeShiftBufferDepth,
       transportType: "smooth",
       type: isLive ? "dynamic" : "static",
-      uris: [url],
+      uris: url ? [url] : [],
       minimumTime,
       periods: [{
         id: "gen-smooth-period-0",
