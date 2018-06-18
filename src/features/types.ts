@@ -88,6 +88,7 @@ export type IImageParser =
 export const enum FEATURE_IDS {
   DASH,
   SMOOTH,
+  METAPLAYLIST,
   EME,
   NATIVE_VTT,
   NATIVE_TTML,
@@ -108,6 +109,7 @@ export const enum FEATURE_IDS {
 export type IFeatureListItem =
   { id : FEATURE_IDS.DASH; content : ITransportFunction } |
   { id : FEATURE_IDS.SMOOTH; content : ITransportFunction } |
+  { id : FEATURE_IDS.METAPLAYLIST; content : ITransportFunction } |
   { id : FEATURE_IDS.EME; content : IEMEManager } |
   { id : FEATURE_IDS.NATIVE_VTT; content : INativeTextTracksParserFn } |
   { id : FEATURE_IDS.NATIVE_TTML; content : INativeTextTracksParserFn } |

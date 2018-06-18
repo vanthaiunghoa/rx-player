@@ -33,6 +33,9 @@ export default function addFeatures(featureList : IFeatureListItem[]) : void {
       case FEATURE_IDS.DASH:
         features.transports.dash = feature.content;
         break;
+      case FEATURE_IDS.METAPLAYLIST:
+        features.transports.metaplaylist = feature.content;
+        break;
       case FEATURE_IDS.DIRECTFILE:
         features.directfile = feature.content;
         break;
