@@ -79,8 +79,9 @@ export default function(
     },
 
     parser(
-      { response, url: reqURL } : IManifestParserArguments<Document|string>
+      { response, infos } : IManifestParserArguments<Document|string>
     ) : IManifestParserObservable {
+      const reqURL = infos.url;
       const url = response.url == null ? reqURL : response.url;
       const data = typeof response.responseData === "string" ?
         new DOMParser().parseFromString(response.responseData, "text/xml") :
@@ -104,12 +105,15 @@ export default function(
     },
 
     parser({
-      segment,
-      representation,
       response,
-      init,
+      infos,
     } : ISegmentParserArguments<Uint8Array|ArrayBuffer|null>
     ) : SegmentParserObservable {
+      const {
+        segment,
+        representation,
+        init,
+      } = infos;
       const { responseData } = response;
       if (responseData == null) {
         return observableOf({ segmentData: null, segmentInfos: null });
@@ -158,9 +162,12 @@ export default function(
       return request({ url: mediaURL, responseType: "arraybuffer" });
     },
 
-    parser(
-      { response, segment } : ISegmentParserArguments<Uint8Array|ArrayBuffer|null>
+    parser({
+      response,
+      infos,
+    } : ISegmentParserArguments<Uint8Array|ArrayBuffer|null>
     ) : ImageParserObservable {
+      const { segment } = infos;
       const responseData = response.responseData;
 
       // TODO image Parsing should be more on the sourceBuffer side, no?
