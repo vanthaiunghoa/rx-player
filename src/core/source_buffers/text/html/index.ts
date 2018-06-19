@@ -41,7 +41,7 @@ import {
 import config from "../../../../config";
 import log from "../../../../utils/log";
 import AbstractSourceBuffer from "../../abstract_source_buffer";
-import TextBufferManager from "./buffer_manager";
+import TimedDataBufferManager from "./buffer_manager";
 import parseTextTrackToElements from "./parsers";
 
 export interface IHTMLTextTrackData {
@@ -109,7 +109,7 @@ export default class HTMLTextTrackSourceBuffer
   private readonly _videoElement : HTMLMediaElement;
   private readonly _destroy$ : Subject<void>;
   private readonly _textTrackElement : HTMLElement;
-  private readonly _buffer : TextBufferManager;
+  private readonly _buffer : TimedDataBufferManager<HTMLElement>;
 
   private _currentElement : HTMLElement|null;
 
@@ -126,7 +126,7 @@ export default class HTMLTextTrackSourceBuffer
     this._videoElement = videoElement;
     this._textTrackElement = textTrackElement;
     this._destroy$ = new Subject();
-    this._buffer = new TextBufferManager();
+    this._buffer = new TimedDataBufferManager();
     this._currentElement = null;
 
     generateClock(this._videoElement)
@@ -148,11 +148,11 @@ export default class HTMLTextTrackSourceBuffer
           safelyRemoveChild(textTrackElement, this._currentElement);
           this._currentElement = null;
           return;
-        } else if (this._currentElement === cue.element) {
+        } else if (this._currentElement === cue.data) {
           return;
         }
         safelyRemoveChild(textTrackElement, this._currentElement);
-        this._currentElement = cue.element;
+        this._currentElement = cue.data;
         textTrackElement.appendChild(this._currentElement);
       });
   }
@@ -188,7 +188,15 @@ export default class HTMLTextTrackSourceBuffer
       type, dataString, timeOffset, language);
     const start = startTime;
     const end = endTime != null ? endTime : cues[cues.length - 1].end;
-    this._buffer.insert(cues, start, end);
+
+    // TODO define "element" as "data" from the beginning?
+    const formattedData = cues.map((cue) => ({
+      start: cue.start,
+      end: cue.end,
+      data: cue.element,
+    }));
+
+    this._buffer.insert(formattedData, start, end);
     this.buffered.insert(start, end);
   }
 
