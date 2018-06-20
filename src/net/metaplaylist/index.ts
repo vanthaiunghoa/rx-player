@@ -51,21 +51,6 @@ import patchSegmentWithTimeOffset from "./isobmff_patcher";
 
 type ITransportTypes = "dash"|"smooth";
 
-export interface IMetaManifestInfo {
-    manifests: Array<{
-      manifest: Document;
-      url: string;
-      startTime: number;
-      endTime: number;
-      transport: ITransportTypes;
-      textTracks: [{
-        url: string;
-        language: string;
-        mimeType: string;
-      }];
-    }>;
-}
-
 interface IMetaPlaylist {
   contents: Array<{
     url: string;
