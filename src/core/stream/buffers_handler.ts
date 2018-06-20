@@ -65,6 +65,7 @@ import {
 import SourceBufferManager, {
   getBufferTypes,
   IBufferType,
+  IOverlaySourceBufferOptions,
   ITextTrackSourceBufferOptions,
   QueuedSourceBuffer,
 } from "../source_buffers";
@@ -165,7 +166,10 @@ export default function BuffersHandler(
   options: {
     maxRetry? : number;
     maxRetryOffline? : number;
-    textTrackOptions? : ITextTrackSourceBufferOptions;
+    sourceBufferOptions?: {
+      text?: ITextTrackSourceBufferOptions;
+      overlay?: IOverlaySourceBufferOptions;
+    };
   },
   errorStream : Subject<Error | ICustomError>
 ) : Observable<IBufferHandlerEvent> {
@@ -514,14 +518,18 @@ export default function BuffersHandler(
     adaptation$ : Observable<Adaptation|null>
   ) : Observable<IPeriodBufferEvent> {
     return adaptation$.pipe(switchMap((adaptation) => {
+      const oldSourceBuffer = sourceBufferManager.get(bufferType);
       if (adaptation == null) {
         log.info(`set no ${bufferType} Adaptation`, period);
         let cleanBuffer$ : Observable<null>;
 
-        if (sourceBufferManager.has(bufferType)) {
+        if (oldSourceBuffer != null) {
           log.info(`clearing previous ${bufferType} SourceBuffer`);
-          const _queuedSourceBuffer = sourceBufferManager.get(bufferType);
-          cleanBuffer$ = _queuedSourceBuffer
+
+          // TODO Also do this when swithching adaptation:
+          //   - like this for custom sourcebuffer
+          //   - let some space for current buffer in native sourcebuffers
+          cleanBuffer$ = oldSourceBuffer
             .removeBuffer({ start: period.start, end: period.end || Infinity })
             .pipe(mapTo(null));
         } else {
@@ -538,15 +546,35 @@ export default function BuffersHandler(
 
       // 1 - create or reuse the SourceBuffer
       let queuedSourceBuffer : QueuedSourceBuffer<any>;
-      if (sourceBufferManager.has(bufferType)) {
+      if (oldSourceBuffer != null) {
         log.info("reusing a previous SourceBuffer for the type", bufferType);
-        queuedSourceBuffer = sourceBufferManager.get(bufferType);
+        queuedSourceBuffer = oldSourceBuffer;
       } else {
         const codec = getFirstDeclaredMimeType(adaptation);
-        const sourceBufferOptions = bufferType === "text" ?
-          options.textTrackOptions : undefined;
-        queuedSourceBuffer = sourceBufferManager
-          .createSourceBuffer(bufferType, codec, sourceBufferOptions);
+
+        switch (bufferType) {
+          case "text": {
+            const textTrackOptions = options.sourceBufferOptions &&
+              options.sourceBufferOptions.text;
+            queuedSourceBuffer = sourceBufferManager
+              .createSourceBuffer("text", codec, textTrackOptions);
+            break;
+          }
+
+          case "overlay": {
+            const overlayOptions = options.sourceBufferOptions &&
+              options.sourceBufferOptions.overlay;
+            queuedSourceBuffer = sourceBufferManager
+              .createSourceBuffer("overlay", codec, overlayOptions);
+            break;
+          }
+
+          default: {
+            queuedSourceBuffer = sourceBufferManager
+              .createSourceBuffer(bufferType, codec);
+            break;
+          }
+        }
       }
 
       // 2 - create or reuse the associated BufferGarbageCollector and
@@ -708,7 +736,10 @@ function createNativeSourceBuffersForPeriod(
   period : Period
 ) : void {
   Object.keys(period.adaptations).forEach(bufferType => {
-    if (SourceBufferManager.isNative(bufferType)) {
+    if (
+      SourceBufferManager.isNative(bufferType) &&
+      !sourceBufferManager.has(bufferType)
+    ) {
       const adaptations = period.adaptations[bufferType] || [];
       const representations = adaptations ?
         adaptations[0].representations : [];

@@ -16,7 +16,6 @@
 
 // privateInfos specific to Smooth Initialization Segments
 export interface ISmoothInitSegmentPrivateInfos {
-  type : "smooth-init";
   codecPrivateData : string;
   bitsPerSample? : number;
   channels? : number;
@@ -31,9 +30,26 @@ export interface ISmoothInitSegmentPrivateInfos {
   };
 }
 
+// privateInfos specific to overlay Segments
+export interface IOverlaySegmentPrivateInfos {
+  start : number;
+  end : number;
+  version : number;
+  element : {
+    url : string;
+    format : string;
+    xAxis : string;
+    yAxis : string;
+    height : string;
+    width : string;
+  };
+}
+
 // Possible values for Segment's privateInfos
-export type ISegmentPrivateInfos =
-  ISmoothInitSegmentPrivateInfos;
+export interface ISegmentPrivateInfos {
+  smoothInit? : ISmoothInitSegmentPrivateInfos;
+  overlayInfos? : IOverlaySegmentPrivateInfos;
+}
 
 // ISegment Object.
 // Represent a single Segment from a Representation.
