@@ -78,7 +78,7 @@ const generateSegmentLoader = (
   init,
 } : ISegmentLoaderArguments) : ILoaderObservable<Uint8Array|ArrayBuffer|null> => {
   if (segment.isInit) {
-    if (!segment.privateInfos || !segment.privateInfos.smoothInit) {
+    if (!segment.privateInfos || segment.privateInfos.smoothInit == null) {
       throw new Error("Smooth: Invalid segment format");
     }
     const privateInfos = segment.privateInfos.smoothInit;

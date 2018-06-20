@@ -26,7 +26,10 @@ import request from "../../utils/request";
 
 import objectAssign from "object-assign";
 
-import { IPrivateInfos, ISegment } from "../../manifest/representation_index/interfaces";
+import {
+  ISegment,
+  ISegmentPrivateInfos,
+} from "../../manifest/representation_index/interfaces";
 import parseMetaManifest from "../../parsers/manifest/metaplaylist";
 import {
   ILoaderObservable,
@@ -174,7 +177,7 @@ function getParserBaseArguments<T>(
  * @param {Object} privateInfos
  */
 function getTransportTypeFromSegmentPrivateInfos(
-  privateInfos: IPrivateInfos
+  privateInfos: ISegmentPrivateInfos
 ): ITransportTypes {
   const transportType = privateInfos.transportType;
 
@@ -185,7 +188,7 @@ function getTransportTypeFromSegmentPrivateInfos(
   return transportType;
 }
 
-export default function(options: ITransportOptions): ITransportPipelines {
+export default function(options? : ITransportOptions): ITransportPipelines {
 
     const transports = {
       dash: DASHTransport(options),
@@ -397,11 +400,22 @@ export default function(options: ITransportOptions): ITransportPipelines {
       },
     };
 
+  const overlayTrackPipeline = {
+    loader() : never {
+      throw new Error("Overlay tracks not managed in DASH");
+    },
+
+    parser() : never {
+      throw new Error("Overlay tracks not yet in DASH");
+    },
+  };
+
       return {
         manifest: manifestPipeline,
         audio: segmentPipeline,
         video: segmentPipeline,
         text: textTrackPipeline,
         image: imageTrackPipeline,
+        overlay: overlayTrackPipeline,
       };
 }
