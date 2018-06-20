@@ -61,7 +61,8 @@ const metaplaylistGenerator = function (
       generatedAt,
     },
     contents: contentLoop,
-    attributes: mplAttributes
+    attributes: mplAttributes,
+    overlays: [],
   }
   return JSON.stringify(metaplaylist);
 }
