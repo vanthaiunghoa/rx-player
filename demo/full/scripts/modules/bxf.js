@@ -369,13 +369,23 @@ export default function loadBXF(bxfURL) {
         contentsWithBlack.push(content);
       } else {
         if (content.startTime > contents[i -1].endTime) {
-          contentsWithBlack.push({
-            url: blackManifestURL,
-            endTime: content.startTime,
-            startTime: contents[i -1].endTime,
-            transport: "dash",
-          });
-          contentsWithBlack.push(content);
+          const contentStartTime = contents[i - 1].endTime;
+          const contentEndTime = content.startTime; 
+          let startTime = contentStartTime;
+          endTime = Math.min(startTime + 600, contentEndTime);
+          let diff = contentEndTime - contentStartTime;
+          do {
+            contentsWithBlack.push({
+              url: blackManifestURL,
+              endTime,
+              startTime,
+              transport: "dash",
+            });
+            diff -= 600;
+            startTime = endTime;
+            endTime = Math.min(startTime + 600, contentEndTime);
+          } while (diff > 0);
+          contentsWithBlack.push(content);  
         }
       }
     });
