@@ -128,7 +128,7 @@ export default function EMEManager(
               keySystemOptions: mediaKeysInfos.keySystemOptions,
               sessionStorage: mediaKeysInfos.sessionStorage,
             },
-          }))),
+          })))
 
         // // attach MediaKeys if we're handling the first event
         // i === 0 ?
