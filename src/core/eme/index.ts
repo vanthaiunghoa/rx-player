@@ -114,7 +114,7 @@ export default function EMEManager(
       })
     )
   ).pipe(
-    mergeMap(([encryptedEvent, mediaKeysInfos], i) => {
+    mergeMap(([encryptedEvent, mediaKeysInfos]) => {
       return observableMerge(
         // create a new MediaKeySession if needed
         handleEncryptedEvent(encryptedEvent, handledInitData, mediaKeysInfos).pipe(
