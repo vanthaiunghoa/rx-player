@@ -1,5 +1,5 @@
 // Bytes utils
-import BXFParser from "../../bxf-parser/src/parser/index.js";
+import BXFParser from "../../bxf-parser2/src/parser/index.js";
 
 function be4toi(bytes, offset) {
   return (
