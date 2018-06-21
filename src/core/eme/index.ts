@@ -30,6 +30,7 @@ import {
 import {
   ignoreElements,
   map,
+  mapTo,
   mergeMap,
   tap,
 } from "rxjs/operators";
@@ -105,6 +106,12 @@ export default function EMEManager(
       keySystemsConfigs,
       attachedMediaKeysInfos,
       errorStream
+    ).pipe(
+      mergeMap((mediaKeysInfos) => {
+        return attachMediaKeys(mediaKeysInfos, mediaElement, attachedMediaKeysInfos).pipe(
+          mapTo(mediaKeysInfos)
+        );
+      })
     )
   ).pipe(
     mergeMap(([encryptedEvent, mediaKeysInfos], i) => {
@@ -123,11 +130,11 @@ export default function EMEManager(
             },
           }))),
 
-        // attach MediaKeys if we're handling the first event
-        i === 0 ?
-          attachMediaKeys(mediaKeysInfos, mediaElement, attachedMediaKeysInfos).pipe(
-            ignoreElements()) :
-          EMPTY
+        // // attach MediaKeys if we're handling the first event
+        // i === 0 ?
+        //   attachMediaKeys(mediaKeysInfos, mediaElement, attachedMediaKeysInfos).pipe(
+        //     ignoreElements()) :
+        //   EMPTY
       );
     }),
     mergeMap((handledEncryptedEvent) =>  {
