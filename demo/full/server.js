@@ -3,6 +3,7 @@
 const Webpack = require("webpack");
 const WebpackDevServer = require("webpack-dev-server");
 const path = require("path");
+// require("./bxf-parser/dist/build.js");
 
 const webpackDemoConfig = require("../../webpack-demo.config.js");
 const webpackLibConfig = require("../../webpack.config.js");

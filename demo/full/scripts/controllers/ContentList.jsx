@@ -4,7 +4,7 @@ import TextInput from "../components/Input.jsx";
 import Select from "../components/Select.jsx";
 import contentsDatabase from "../contents.js";
 
-const TRANSPORT_TYPES = ["MetaPlaylist", "DASH", "Smooth", "DirectFile"];
+const TRANSPORT_TYPES = ["BXF", "MetaPlaylist", "DASH", "Smooth", "DirectFile"];
 const CONTENTS_PER_TYPE = TRANSPORT_TYPES.reduce((acc, tech) => {
   acc[tech] = contentsDatabase.filter(({ transport }) =>
     transport === tech.toLowerCase()
@@ -33,6 +33,7 @@ class ContentList extends React.Component {
 
     const {
       url,
+      beginning,
       transport,
       autoPlay,
       supplementaryImageTracks,
@@ -41,6 +42,7 @@ class ContentList extends React.Component {
     } = content;
     loadVideo({
       url,
+      beginning,
       transport,
       autoPlay: !(autoPlay === false),
       supplementaryImageTracks,
