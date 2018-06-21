@@ -192,8 +192,8 @@ export default class SourceBufferManager {
   ) : QueuedSourceBuffer<any> {
     if (shouldHaveNativeSourceBuffer(bufferType)) {
       if (this._nativeSourceBuffers[bufferType] != null) {
-        // XXX TODO MediaError
-        throw new Error(`A ${bufferType} has already been created.`);
+        // This should never happen
+        throw new MediaError("DUPLICATED_SOURCE_BUFFER", null, true);
       }
       log.info("adding native SourceBuffer with codec", codec);
       const nativeSourceBuffer = createNativeQueuedSourceBuffer(this._mediaSource, codec);
@@ -205,25 +205,25 @@ export default class SourceBufferManager {
     }
 
     if (this._customSourceBuffers[bufferType] != null) {
-      // XXX TODO MediaError
-      throw new Error(`A ${bufferType} has already been created.`);
+      // This should never happen
+      throw new MediaError("DUPLICATED_SOURCE_BUFFER", null, true);
     }
 
     switch (bufferType) {
       case "text": {
         log.info("creating a new text SourceBuffer with codec", codec);
-        const opts = options as ITextTrackSourceBufferOptions; // XXX TODO
+        const opts = options as ITextTrackSourceBufferOptions;
 
         let sourceBuffer : ICustomSourceBuffer<any>;
         if (opts.textTrackMode === "html") {
           if (features.htmlTextTracksBuffer == null) {
-            throw new Error("HTML Text track feature not activated");
+            throw new MediaError("BUFFER_TYPE_UNKNOWN", null, true);
           }
           sourceBuffer = new features
             .htmlTextTracksBuffer(this._videoElement, opts.textTrackElement);
         } else {
           if (features.nativeTextTracksBuffer == null) {
-            throw new Error("Native Text track feature not activated");
+            throw new MediaError("BUFFER_TYPE_UNKNOWN", null, true);
           }
           sourceBuffer = new features
             .nativeTextTracksBuffer(this._videoElement, !!opts.hideNativeSubtitle);
@@ -239,7 +239,7 @@ export default class SourceBufferManager {
 
       case "image": {
         if (features.imageBuffer == null) {
-          throw new Error("Image buffer feature not activated");
+          throw new MediaError("BUFFER_TYPE_UNKNOWN", null, true);
         }
         log.info("creating a new image SourceBuffer with codec", codec);
         const sourceBuffer = new features.imageBuffer();
@@ -253,16 +253,16 @@ export default class SourceBufferManager {
 
       case "overlay": {
         if (features.overlayBuffer == null) {
-          throw new Error("Image buffer feature not activated");
+          throw new MediaError("BUFFER_TYPE_UNKNOWN", null, true);
         }
         log.info("creating a new overlay SourceBuffer with codec", codec);
         if (!options) {
-          // XXX TODO Better error
-          throw new Error(`invalid ${bufferType} options`);
+          // This should never happen
+          throw new MediaError("INVALID_SOURCE_BUFFER_ARGUMENTS", null, true);
         }
         const sourceBuffer = new features.overlayBuffer(
           this._videoElement,
-          (options as IOverlaySourceBufferOptions).overlayElement // XXX TODO TS 2Dumb4me
+          (options as IOverlaySourceBufferOptions).overlayElement // TS 2Dumb4me
         );
         const queuedSourceBuffer = new QueuedSourceBuffer(sourceBuffer);
         this._customSourceBuffers.overlay = {
