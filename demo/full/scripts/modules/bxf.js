@@ -372,7 +372,7 @@ export default function loadBXF(bxfURL) {
           const contentStartTime = contents[i - 1].endTime;
           const contentEndTime = content.startTime; 
           let startTime = contentStartTime;
-          endTime = Math.min(startTime + 600, contentEndTime);
+          let endTime = Math.min(startTime + 600, contentEndTime);
           let diff = contentEndTime - contentStartTime;
           do {
             contentsWithBlack.push({
