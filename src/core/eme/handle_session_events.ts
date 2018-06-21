@@ -83,6 +83,7 @@ export interface IMediaKeySessionHandledEvents {
 export default function handleSessionEvents(
   session: IMediaKeySession|MediaKeySession,
   keySystem: IKeySystemOption,
+  initData: Uint8Array,
   errorStream: Subject<Error|ICustomError>
 ) : Observable<IMediaKeySessionHandledEvents> {
   log.debug("eme: handle message events", session);
@@ -176,7 +177,7 @@ export default function handleSessionEvents(
       );
 
       const getLicense$ = observableDefer(() => {
-        const getLicense = keySystem.getLicense(message, messageType);
+        const getLicense = keySystem.getLicense(message, messageType, initData);
         return castToObservable(getLicense).pipe(
           timeout(10 * 1000),
           catchError((error : Error) => {

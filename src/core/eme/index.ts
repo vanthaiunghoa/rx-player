@@ -148,7 +148,7 @@ export default function EMEManager(
       } = handledEncryptedEvent.value;
 
       return observableMerge(
-        handleSessionEvents(mediaKeySession, keySystemOptions, errorStream),
+        handleSessionEvents(mediaKeySession, keySystemOptions, initData, errorStream),
 
         // only perform generate request on new sessions
         handledEncryptedEvent.type === "created-session" ?
