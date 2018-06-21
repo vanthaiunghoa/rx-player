@@ -285,6 +285,7 @@ body {
 
 .control-button.disabled {
   color: #444;
+  cursor: default;
 }
 
 .play-pause-button {
@@ -303,7 +304,7 @@ body {
   width: auto;
 }
 
-.volume {
+.volume, .prev-next-prog {
   position: relative;
   display: flex;
 }
@@ -330,7 +331,7 @@ body {
   cursor: pointer;
   margin: auto;
   margin-left: -8px;
-  width: 60px;
+  width: 60px;prev-next-prog
   border-radius: 10px;
 }
 
@@ -341,9 +342,9 @@ body {
   border-radius: 10px;
 }
 
-.volume-bar-current:hover {
-  background-color: #fff;
-}
+  .volume-bar-current:hover {
+    background-color: #fff;
+  }
 
 .volume-indicator {
   background-color: #000;

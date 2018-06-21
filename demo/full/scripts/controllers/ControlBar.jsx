@@ -4,6 +4,8 @@ import PositionInfos from "../components/PositionInfos.jsx";
 import LivePosition from "../components/LivePosition.jsx";
 // import SettingsButton from "./SettingsButton.jsx";
 import PlayPauseButton from "./PlayPauseButton.jsx";
+import PreviousProgramButton from "./PreviousProgramButton.js";
+import NextProgramButton from "./NextProgramButton.js";
 import FullscreenButton from "./FullScreenButton.jsx";
 import Progressbar from "./ProgressBar.jsx";
 import VolumeButton from "./VolumeButton.jsx";
@@ -48,6 +50,18 @@ const ControlBar = ({
         />
         { positionElement }
         <div className="controls-right-side">
+          <div className="prev-next-prog">
+            <PreviousProgramButton
+              className={"control-button"}
+              player={player}
+              videoElement={videoElement}
+            />
+            <NextProgramButton
+              className={"control-button"}
+              player={player}
+              videoElement={videoElement}
+            />
+          </div>
           <div className="volume">
             <VolumeButton
               className="control-button"
