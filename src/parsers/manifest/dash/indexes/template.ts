@@ -116,7 +116,6 @@ export default class TemplateRepresentationIndex implements IRepresentationIndex
    * @returns {Array.<Object>}
    */
   getSegments(_up : number, _to : number) : ISegment[] {
-    debugger;
     const index = this._index;
     const { up, to } = normalizeRange(index, _up, _to);
     if (to <= up) {
