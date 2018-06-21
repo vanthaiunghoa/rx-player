@@ -564,6 +564,14 @@ export default function BuffersHandler(
           case "overlay": {
             const overlayOptions = options.sourceBufferOptions &&
               options.sourceBufferOptions.overlay;
+
+            if (!overlayOptions) {
+              // no options -> just ignore the overlay
+              log.warn("overlay adaptation encountered but no overlayOptions" +
+                       "set. Ignoring the adaptation");
+              return createFakeBuffer(
+                clock$, wantedBufferAhead$, bufferType, { manifest, period });
+            }
             queuedSourceBuffer = sourceBufferManager
               .createSourceBuffer("overlay", codec, overlayOptions);
             break;
