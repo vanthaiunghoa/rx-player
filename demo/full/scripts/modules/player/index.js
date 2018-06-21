@@ -76,7 +76,7 @@ const PLAYER = (
 
     LOAD: (arg) => {
       if (arg.transport === "bxf") {
-        loadBXF(arg.url);
+        loadBXF(arg.url, textTrackElement, overlayElement);
       } else {
         player.loadVideo(Object.assign({
           textTrackElement,

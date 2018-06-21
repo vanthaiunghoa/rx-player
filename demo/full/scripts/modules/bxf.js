@@ -300,7 +300,7 @@ function parseInitData(initData) {
   return undefined;
 }
 
-export default function loadBXF(bxfURL) {
+export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
   return parseBXF(bxfURL, BXFParser, "text").then(async ({ contents: parsedContents }) => {
     console.log("############## Parsed BXF ################");
     const contents = [];
@@ -385,7 +385,7 @@ export default function loadBXF(bxfURL) {
             startTime = endTime;
             endTime = Math.min(startTime + 3600, contentEndTime);
           } while (diff > 0);
-          contentsWithBlack.push(content);  
+          contentsWithBlack.push(content);
         }
       }
     });
@@ -400,7 +400,7 @@ export default function loadBXF(bxfURL) {
       attributes: {
         timeShiftBufferDepth: 10000
       },
-      overlays: [],
+      overlays,
     };
 
     if (contents.length >= 1) {
@@ -413,13 +413,18 @@ export default function loadBXF(bxfURL) {
           url: manifestURL,
           transport: "metaplaylist",
           autoPlay: true,
+          textTrackElement,
+          overlayElement,
           keySystems: [
             {
               type: "widevine",
               getLicense,
               serverCertificate: certificate,
             }
-          ]
+          ],
+          startAt: {
+            wallClockTime: (Date.now() / 1000) - 60 * 60 * 2,
+          },
         });
       });
     }
