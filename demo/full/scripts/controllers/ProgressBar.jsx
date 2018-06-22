@@ -1,12 +1,14 @@
 import React from "react";
 import ProgressbarComponent from "../components/ProgressBar.jsx";
 import ImageTip from "../components/ImageTip.jsx";
+import TimeTip from "../components/TimeIndication.jsx";
 import withModulesState from "../lib/withModulesState.jsx";
 
 class Progressbar extends React.Component {
   constructor(...args) {
     super(...args);
     this.state = {
+      timeTipVisible: false,
       imageTipVisible: false,
       imageTipPosition: 0,
       image: null,
@@ -16,6 +18,13 @@ class Progressbar extends React.Component {
   showImageTip(ts, clientX) {
     const { images } = this.props;
     if (!images || !images.length) {
+      this.setState({
+        timeTipVisible: true,
+        timeTipPosition: ts,
+        imageTipVisible: false,
+        imageTipPosition: clientX,
+        image: null,
+      });
       return;
     }
     const timestampToMs = ts * 1000;
@@ -25,18 +34,17 @@ class Progressbar extends React.Component {
     const image = imageIndex === -1 ?
       images[images.length - 1] :
       images[imageIndex - 1];
-    if (!image) {
-      return;
-    }
     this.setState({
-      imageTipVisible: true,
+      timeTipVisible: true,
+      imageTipVisible: !!image,
       imageTipPosition: clientX,
-      image: image.data,
+      image: image != null ? image.data : null,
     });
   }
 
   hideImageTip() {
     this.setState({
+      timeTipVisible: false,
       imageTipVisible: false,
       imageTipPosition: 0,
       image: null,
@@ -44,7 +52,13 @@ class Progressbar extends React.Component {
   }
 
   render() {
-    const { imageTipVisible, imageTipPosition, image } = this.state;
+    const {
+      timeTipVisible,
+      timeTipPosition,
+      imageTipVisible,
+      imageTipPosition,
+      image,
+    } = this.state;
     const {
       currentTime,
       minimumPosition,
@@ -70,6 +84,13 @@ class Progressbar extends React.Component {
           <ImageTip
             className="progress-tip"
             image={image}
+            xPosition={imageTipPosition - imageTipOffset}
+          /> : null
+        }
+        { timeTipVisible ?
+          <TimeTip
+            className="progress-tip"
+            text={timeTipPosition}
             xPosition={imageTipPosition - imageTipOffset}
           /> : null
         }
