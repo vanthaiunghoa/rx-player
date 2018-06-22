@@ -144,8 +144,18 @@ function getManifestAndLicenseURL(token, mediaURL) {
     xhr.setRequestHeader("Content-Type","application/json; charset=utf-8");
     xhr.onload = (evt) => {
       const media = JSON.parse(evt.target.response);
-      const manifestURL = (media["VM"] || media["VF"])[0].media[0].distribURL;
-      const licenseURL = (media["VM"] || media["VF"])[0]["@licence"];
+      const manifestURL = (
+        media["VM"] ||
+        media["VOST"] ||
+        media["VF"] ||
+        Object.values(media)[0]
+      )[0].media[0].distribURL;
+      const licenseURL = (
+        media["VM"] ||
+        media["VOST"] ||
+        media["VF"] ||
+        Object.values(media)[0]
+      )["@licence"];
       resolve({
         manifestURL,
         licenseURL
@@ -500,20 +510,20 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
   
       const finalContent = contentBefore.concat(contentsWithBlack.concat(contentAfter));
       
-      finalContent.forEach((content) => {
-        content.startTime += 86400;
-        content.endTime += 86400;
-      });
+      // finalContent.forEach((content) => {
+      //   content.startTime += 86400;
+      //   content.endTime += 86400;
+      // });
 
-      epg.forEach((prog) => {
-        prog.startTime += 86400;
-        prog.endTime += 86400;
-      });
+      // epg.forEach((prog) => {
+      //   prog.startTime += 86400;
+      //   prog.endTime += 86400;
+      // });
 
-      overlays.forEach((overlay) => {
-        overlay.start += 86400;
-        overlay.end += 86400;
-      });
+      // overlays.forEach((overlay) => {
+      //   overlay.start += 86400;
+      //   overlay.end += 86400;
+      // });
 
       epg.sort((A, B) => A.startTime - B.startTime);
       finalContent.sort((A, B) => A.startTime - B.startTime);
