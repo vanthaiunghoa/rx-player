@@ -155,7 +155,7 @@ function getManifestAndLicenseURL(token, mediaURL) {
         media["VOST"] ||
         media["VF"] ||
         Object.values(media)[0]
-      )["@licence"];
+      )[0]["@licence"];
       resolve({
         manifestURL,
         licenseURL
