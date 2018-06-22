@@ -235,6 +235,7 @@ const fillingDuration = 600;
 const imageDictionnary = {
   "Déconseillé -10ans": "http://127.0.0.1:8089/tmp/picto10.png",
 }
+const timeShiftBufferDepth = 10000;
 
 function getURLForLogoTitle(title) {
   return imageDictionnary[title];
@@ -391,7 +392,54 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
       }
     });
 
-    contentsWithBlack.forEach((content) => {
+    // Content Before
+
+    const contentBefore = [];
+    const beforeUntilTime = contentsWithBlack[0].startTime; 
+    const beforeFromTime = beforeUntilTime - timeShiftBufferDepth;
+
+    let startTime = beforeFromTime;
+    let endTime = Math.min(startTime + fillingDuration, beforeUntilTime);
+
+    let diff = beforeUntilTime - beforeFromTime;
+    do {
+      contentBefore.push({
+        url: fillingManifestURL,
+        endTime,
+        startTime,
+        transport: "dash",
+      });
+      diff -= fillingDuration;
+      startTime = endTime;
+      endTime = Math.min(startTime + fillingDuration, beforeUntilTime);
+    } while (diff > 0);
+
+    // Content After
+
+    const contentAfter = [];
+    const afterFromTime = contentsWithBlack[contentsWithBlack.length -1].endTime; 
+    const afterUntilTime = afterFromTime + timeShiftBufferDepth;
+
+    startTime = afterFromTime;
+    endTime = Math.min(startTime + fillingDuration, afterUntilTime);
+
+    diff = afterUntilTime - afterFromTime;
+    do {
+      contentAfter.push({
+        url: fillingManifestURL,
+        endTime,
+        startTime,
+        transport: "dash",
+      });
+      diff -= fillingDuration;
+      startTime = endTime;
+      endTime = Math.min(startTime + fillingDuration, afterUntilTime);
+    } while (diff > 0);
+
+    const finalContent = contentBefore.concat(contentsWithBlack.concat(contentAfter));
+    
+
+    finalContent.forEach((content) => {
       content.startTime += 86400;
       content.endTime += 86400;
     });
@@ -407,9 +455,9 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
         mplVersion: "1.0",
         generatedAt: "",
       },
-      contents: contentsWithBlack,
+      contents: finalContent,
       attributes: {
-        timeShiftBufferDepth: 10000
+        timeShiftBufferDepth,
       },
       overlays,
     };
