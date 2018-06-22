@@ -90,6 +90,19 @@ function getMediaInfosURL(token, widevinePlayset) {
 }
 
 function getLicenseObject(token, licenseURL, challenge){
+  if (licenseURL === fillingLicenseURL) {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", licenseURL, true);
+    xhr.responseType = "application/octet-stream";
+    return new Promise((resolve) => {
+      xhr.onload = (evt) => {
+        const license = evt.target.response;
+        resolve(strToBytes(atob(license)));
+      }
+      xhr.send(btoa(bytesToStr(challenge)));
+    });
+  }
+
   const xhr = new XMLHttpRequest();
   xhr.open("POST", licenseURL, true);
   xhr.setRequestHeader("xx-operator","pc");
@@ -230,7 +243,9 @@ function getKID(url) {
 const kidByAffairePgrm = {};
 // const token = window.passToken;
 const token = "10501iObW9VdwlLPyTU1NGuydH2UNMmVjMuw6wD_sHZhPB3tcSg3FhHD0ukLdfjJ34aqzhKel1x1XXbmsv_tonybGZrptgPaert3HD6xF6tZiTwy7r0iwvEKvFuZsfyrz7m6ux32pYsjwiu7aNbZ1HiW-yMLMoaaLz2iGmt_O_0nwWLWMyhxQm_mqmwoUZGeglG84XoCyr3LgOVwHiU5LX9fVL1_hPptxfd_n6BGwAno8pB_u0aPjfp1XhEP2XOcEsA5nmH94azV-BPgSXwlFVU_-viNxijmpdUgs62qGLz4vKfluMTVzkdhMuhcSFsWGeCWfrZRDT4cvvxEGxX5E5P1i87P-Dc7FrM2D73Fs--6rc2re2f54_EddZ4CDI-7xiBW2ram14CQRjQsCYipAa1ESh63V-DSpoSGpUEDFa9oBxCAiV-_R5aCf9FeloUT60rb33CHdmRE_WlGW7bPgalEjw8fXIwr3pndmd3MMw2-YcTdM2YlAhK9UcT2t8a-0yQOniMiiom9gjjhYy9D11tqVa8h7JMMEqgCnMNp9RDzFZw6e8yxeuY1YN7CSTypK7j2-mT5l41XnYqqzEPiGzuRMSTEw_CLmbgmeEguAjmBQucWwX0l86tgFeapYWZLybjmLO1V9z1w4CUfBW8KBcl81SXDK6gi067O319gjr_bj_VV1VBrgwG5uQT1jn9AgTJU2Uo_Xvxv7ex5VHD_fKbifYsNaSHWhsPIwqYe9l5rcR5IaHwpBnEBPYOjgQAOCRiI0d0P8eUuy1TI0GIOBImlT7vcaWzyJWUXMQWiSoQOdy4HPXceV-ohSLPYFqKFAMaB7qlTrXsbEzvcwgVgUyyqs5gt8yT_LXBwNr19aTfmzBcK0_Ix_M3DxR9mT5s93cVNOvk4lRHWnhqeXUvrTbCBjTAFSqK1ZlDepLSRdlPBWv-1tFCQPLJvaK1w_33nJ9pJ2M_bOiHW-lMooyfxzjdIvve1i2m_oUplykmYtjt7jAHucFStw8WrfCADjpzGzNe50_eUfjUXajfA0iy5AmRYDTR4sGDNFmrzdU7DVFxn_Rin98qsOUucZ48tq0rrgYqnIkQssA0wipzKpGcjVlULzLiponvRuLqkSaWiFOaoLP5zjJdf6vBptFHOJfTUbPaC8wd93FWjF9Gol9PL8p59rIelnyRysiHg1h5BAwpSajy4S0rGE5O3ejwqVKjTbioPvDSApw8daGmnxuiXbulEPsGLSC5VfJd69EEmv7a1YLWMODhjr7unDqVmQGmo43U7_SpwOqfeuQaLG9X4zEEusSjYyQ1593tBn1FSMDaTNdJBpt0x8pMwA6b9inmgtm_YlitUAV582HOIF6vPrma6URlQg5vhwMkgM9-evGuhLH_s1xdP9L2JHDFUPmb6Zoyvy";
-const fillingManifestURL = "http://127.0.0.1:8089/tmp/series.mpd";
+const fillingManifestURL = "http://hss-vod-aka-test.canal-bis.com/ondemand/rx-test/index.ism/manifest";
+const fillingLicenseURL = "https://secure-webtv.canal-bis.com/WebPortal-vabf/TestDRM/api/Widevine";
+const fillingTransportType = "smooth";
 const fillingDuration = 600;
 const imageDictionnary = {
   "Déconseillé -10ans": "http://127.0.0.1:8089/tmp/picto10.png",
@@ -308,6 +323,11 @@ function parseInitData(initData) {
 export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
   return parseBXF(bxfURL, BXFParser, "text").then(async ({ contents: parsedContents }) => {
     console.log("############## Parsed BXF ################");
+
+    getKID(fillingManifestURL).then(({ kid }) => {
+      kidByAffairePgrm[kid] = fillingLicenseURL;
+    });
+
     const contents = [];
     const overlays = [];
     for (const parsedContent of parsedContents) {
@@ -384,7 +404,7 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
               url: fillingManifestURL,
               endTime,
               startTime,
-              transport: "dash",
+              transport: fillingTransportType,
             });
             diff -= fillingDuration;
             startTime = endTime;
@@ -410,7 +430,7 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
         url: fillingManifestURL,
         endTime,
         startTime,
-        transport: "dash",
+        transport: fillingTransportType,
       });
       diff -= fillingDuration;
       startTime = endTime;
@@ -432,7 +452,7 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
         url: fillingManifestURL,
         endTime,
         startTime,
-        transport: "dash",
+        transport: fillingTransportType,
       });
       diff -= fillingDuration;
       startTime = endTime;
@@ -483,7 +503,7 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
               getLicense,
               serverCertificate: certificate,
             }
-          ],
+          ]
         });
       });
     }
