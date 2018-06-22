@@ -350,14 +350,6 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
           const videos = parsedContent.video;
           if (videos) {
             for(const video of videos) {
-              if (
-                video.type === "CIN" ||
-                video.type === "MUS" ||
-                video.type === "CA" ||
-                video.type === "SA" ||
-                video.type === "EMI" ||
-                video.type === "SER"
-              ) {
                   getManifestURL(token, video.affaire, video.pgrm).then(({ manifestURL, licenseURL }) => {
                     epg.push({
                         startTime: video.startTime,
@@ -420,9 +412,6 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
                   }).catch((_) => {
                     resolve();
                   });
-              } else {
-                resolve();
-              }
             }
           } else {
             resolve();
