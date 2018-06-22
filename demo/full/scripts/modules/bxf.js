@@ -401,8 +401,6 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
       overlay.end += 86400;
     });
 
-    debugger;
-
     const metaplaylist = {
       metadata: {
         name: "",
@@ -435,9 +433,6 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
               serverCertificate: certificate,
             }
           ],
-          // startAt: {
-          //   wallClockTime: (Date.now() / 1000) - 60 * 60 * 2,
-          // },
         });
       });
     }
