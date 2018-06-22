@@ -328,6 +328,7 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
       kidByAffairePgrm[kid] = fillingLicenseURL;
     });
 
+    const epg = [];
     const contents = [];
     const overlays = [];
 
@@ -348,6 +349,11 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
                 video.type === "SER"
               ) {
                   getManifestURL(token, video.affaire, video.pgrm).then(({ manifestURL, licenseURL }) => {
+                    epg.push({
+                        startTime: video.startTime,
+                        endTime: video.endTime,
+                        title: video.title,
+                    });
                     const subtitleURL = manifestURL.indexOf(".ism") > 0 ? manifestURL.substring(0, manifestURL.indexOf(".ism")) + ".vtt" : undefined;
                     const textTracks = [];
                   
@@ -498,6 +504,11 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
         content.endTime += 86400;
       });
   
+      epg.forEach((prog) => {
+        prog.startTime += 86400;
+        prog.endTime += 86400;
+      });
+
       overlays.forEach((overlay) => {
         overlay.start += 86400;
         overlay.end += 86400;
@@ -538,6 +549,7 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
           });
         });
       }
+      return epg;
     });
   });
 }
