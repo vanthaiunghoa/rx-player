@@ -355,6 +355,7 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
                         startTime: video.startTime,
                         endTime: video.endTime,
                         title: video.title,
+                        isAvailable: true,
                     });
                     const subtitleURL = manifestURL.indexOf(".ism") > 0 ? manifestURL.substring(0, manifestURL.indexOf(".ism")) + ".vtt" : undefined;
                     const textTracks = [];
@@ -410,6 +411,12 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
                       reject(error);
                     });
                   }).catch((_) => {
+                    epg.push({
+                      startTime: video.startTime,
+                      endTime: video.endTime,
+                      title: video.title,
+                      isAvailable: false,
+                    });
                     resolve();
                   });
             }
