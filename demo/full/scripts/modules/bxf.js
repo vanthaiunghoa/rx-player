@@ -487,7 +487,7 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
       overlay.start += 86400;
       overlay.end += 86400;
     });
-    debugger;
+
     const metaplaylist = {
       metadata: {
         name: "",
