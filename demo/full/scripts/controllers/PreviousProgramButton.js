@@ -30,7 +30,7 @@ function PreviousProgramButton({
   const newPeriod = indexOf === 0 ?
     currentPeriod : manifest.periods[indexOf - 1];
   const onClick = function onPreviousProgramClick() {
-    player.dispatch("SEEK", newPeriod.start);
+    player.dispatch("SEEK", newPeriod.start - 2);
   };
   return (
     <Button
