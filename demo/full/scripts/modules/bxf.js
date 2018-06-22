@@ -421,7 +421,7 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
       );
     }
 
-    Promise.all(promises).then(() => {
+    return Promise.all(promises).then(() => {
       console.log("############## Built Metaplaylist ################");
 
       const contentsWithBlack = [];
