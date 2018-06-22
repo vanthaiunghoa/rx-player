@@ -426,11 +426,13 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
 
       const contentsWithBlack = [];
   
+      contents.sort((A, B) => A.startTime - B.startTime);
+
       contents.forEach((content, i) => {
         if (i === 0) {
           contentsWithBlack.push(content);
         } else {
-          if (content.startTime > contents[i -1].endTime) {
+          if (content.startTime >= contents[i - 1].endTime) {
             const contentStartTime = contents[i - 1].endTime;
             const contentEndTime = content.startTime; 
             let startTime = contentStartTime;
@@ -498,7 +500,6 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
   
       const finalContent = contentBefore.concat(contentsWithBlack.concat(contentAfter));
       
-  
       finalContent.forEach((content) => {
         content.startTime += 86400;
         content.endTime += 86400;
