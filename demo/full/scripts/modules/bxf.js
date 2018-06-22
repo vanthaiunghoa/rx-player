@@ -503,7 +503,7 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
         content.startTime += 86400;
         content.endTime += 86400;
       });
-  
+
       epg.forEach((prog) => {
         prog.startTime += 86400;
         prog.endTime += 86400;
@@ -513,6 +513,10 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
         overlay.start += 86400;
         overlay.end += 86400;
       });
+
+      epg.sort((A, B) => A.startTime - B.startTime);
+      finalContent.sort((A, B) => A.startTime - B.startTime);
+      overlays.sort((A, B) => A.startTime - B.startTime);
   
       const metaplaylist = {
         metadata: {
