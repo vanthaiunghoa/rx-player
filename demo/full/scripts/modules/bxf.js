@@ -234,6 +234,9 @@ const fillingManifestURL = "http://127.0.0.1:8089/tmp/series.mpd";
 const fillingDuration = 600;
 const imageDictionnary = {
   "Déconseillé -10ans": "http://127.0.0.1:8089/tmp/picto10.png",
+  "Déconseillé -12ans": "http://127.0.0.1:8089/tmp/picto12.png",
+  "Déconseillé -16ans": "http://127.0.0.1:8089/tmp/picto16.png",
+  "Déconseillé -18ans": "http://127.0.0.1:8089/tmp/picto18.png",
 }
 const timeShiftBufferDepth = 60 * 60 * 8;
 
