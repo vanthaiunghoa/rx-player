@@ -390,6 +390,16 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
       }
     });
 
+    contentsWithBlack.forEach((content) => {
+      content.startTime += 86400;
+      content.endTime += 86400;
+    });
+
+    overlays.forEach((overlay) => {
+      overlay.start += 86400;
+      overlay.end += 86400;
+    });
+
     const metaplaylist = {
       metadata: {
         name: "",
