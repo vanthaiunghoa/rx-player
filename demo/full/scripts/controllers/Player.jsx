@@ -9,6 +9,7 @@ import ErrorDisplayer from "./ErrorDisplayer.jsx";
 import PlayerKnobsManager from "./PlayerKnobs.jsx";
 import LogDisplayer from "./LogDisplayer.jsx";
 import ChartsManager from "./charts/index.jsx";
+import withModulesState from "../lib/withModulesState.jsx";
 
 // time in ms while seeking/loading/buffering after which the spinner is shown
 const SPINNER_TIMEOUT = 300;
@@ -33,9 +34,10 @@ class Player extends React.Component {
     this._$destroySubject = new Subject();
     this._$destroySubject.subscribe(() => player.destroy());
 
-    player.$get("isSeeking", "isBuffering", "isLoading")
+    player.$get("isSeeking", "isBuffering", "isLoading", "epg")
       .pipe(takeUntil(this._$destroySubject))
-      .subscribe(([isSeeking, isBuffering, isLoading]) => {
+      .subscribe(([isSeeking, isBuffering, isLoading, epg]) => {
+        this.setState({ epg });
         if (isSeeking || isBuffering || isLoading) {
           this._displaySpinnerTimeout = setTimeout(() => {
             this.setState({
@@ -85,7 +87,7 @@ class Player extends React.Component {
   }
 
   render() {
-    const { player, displaySpinner } = this.state;
+    const { player, displaySpinner, epg } = this.state;
     const loadVideo = (video) => this.state.player.dispatch("LOAD", video);
     const stopVideo = () => this.state.player.dispatch("STOP");
 
@@ -132,6 +134,7 @@ class Player extends React.Component {
                 /> : null}
           </div>
           {player ?  <PlayerKnobsManager player={player} /> : null}
+          {epg && epg.length ? <EpgState epg={epg} player={player} /> : null}
           {player ?  <ChartsManager player={player} /> : null }
           {player ?  <LogDisplayer player={player} /> : null}
         </div>
@@ -139,5 +142,53 @@ class Player extends React.Component {
     );
   }
 }
+
+function EPG({
+  epg,
+  player,
+  currentTime,
+}) {
+  const seeker = (startTime) => () => {
+    player.dispatch("SEEK", startTime);
+  };
+  const programs = epg
+    .filter((prog) => prog.isAvailable)
+    .map((prog) => {
+      const date = new Date(prog.startTime * 1000);
+      const hours = ((date.getUTCHours() + 2) % 24).toString().padStart(2, "0");
+      const minutes = date.getMinutes().toString().padStart(2, "0");
+      const seconds = date.getSeconds().toString().padStart(2, "0");
+      const currentReadableHour =  hours + ":" + minutes + ":" + seconds;
+      const isCurrent = currentTime >= prog.startTime &&
+        currentTime < prog.endTime;
+      return (
+        <div
+          className={`epg-program ${isCurrent ? " active" : ""} ${!prog.isAvailable ? " unavailable" : ""}`}
+          onClick={seeker(prog.startTime)}
+        >
+          <span className="epg-program-hours">
+            {currentReadableHour}
+          </span>
+          <span className="epg-program-title">
+            {prog.title}
+          </span>
+        </div>
+      );
+    });
+
+  return (
+    <div className="epg-grid-wrapper">
+      <div className="epg-grid">
+        {programs}
+      </div>
+    </div>
+  );
+}
+
+const EpgState = withModulesState({
+  player: {
+    currentTime: "currentTime",
+  },
+})(EPG);
 
 export default Player;

@@ -39,6 +39,7 @@ const PLAYER = (
     bufferGap: undefined,
     currentTime: undefined,
     duration: undefined,
+    epg: [],
     error: null,
     hasEnded: false,
     hasLoadedContent: false,
@@ -87,7 +88,9 @@ const PLAYER = (
             manifestRetry: Infinity,
             offlineRetry: Infinity,
           },
-        }, arg));
+        }, arg)).then((epg) => {
+          state.set({ epg });
+        });
       } else {
         player.loadVideo(Object.assign({
           textTrackElement,

@@ -349,6 +349,7 @@ export default function loadBXF({
       kidByAffairePgrm[kid] = fillingLicenseURL;
     });
 
+    const epg = [];
     const contents = [];
     const overlays = [];
     const logoOverlays = [];
@@ -362,6 +363,12 @@ export default function loadBXF({
           if (videos) {
             for(const video of videos) {
                   getManifestURL(token, video.affaire, video.pgrm).then(({ manifestURL, licenseURL }) => {
+                    epg.push({
+                        startTime: video.startTime,
+                        endTime: video.endTime,
+                        title: video.title,
+                        isAvailable: true,
+                    });
                     const subtitleURL = manifestURL.indexOf(".ism") > 0 ? manifestURL.substring(0, manifestURL.indexOf(".ism")) + ".vtt" : undefined;
                     const textTracks = [];
                   
@@ -502,6 +509,12 @@ export default function loadBXF({
                     xhr.send();
 
                   }).catch((_) => {
+                    epg.push({
+                      startTime: video.startTime,
+                      endTime: video.endTime,
+                      title: video.title,
+                      isAvailable: false,
+                    });
                     resolve();
                   });
             }
@@ -664,6 +677,7 @@ export default function loadBXF({
           });
         });
       }
+      return epg;
     });
   });
 }
