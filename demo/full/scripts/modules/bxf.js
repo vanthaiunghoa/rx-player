@@ -330,198 +330,214 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
 
     const contents = [];
     const overlays = [];
-    for (const parsedContent of parsedContents) {
-      const videos = parsedContent.video;
-      if (videos) {
-        for(const video of videos) {
-          if (
-            video.type === "CIN" ||
-            video.type === "MUS" ||
-            video.type === "CA" ||
-            video.type === "SA" ||
-            video.type === "EMI" ||
-            video.type === "SER"
-          ) {
-            try {
-              const { manifestURL, licenseURL } = await getManifestURL(token, video.affaire, video.pgrm);
-              const subtitleURL = manifestURL.indexOf(".ism") > 0 ? manifestURL.substring(0, manifestURL.indexOf(".ism")) + ".vtt" : undefined;
-              const textTracks = [];
 
-              if (subtitleURL) {
-                const xhr = new XMLHttpRequest();
-                xhr.open("GET", subtitleURL, false);
-                xhr.send();
-                if (xhr.status < 300) {
-                  textTracks.push({
-                    url: subtitleURL,
-                    language: "FRA",
-                    mimeType: "text/vtt",
-                  });
-                }
-              }
-              contents.push({
-                name: video.title,
-                url: manifestURL + "/Manifest",
-                startTime: video.startTime,
-                endTime: video.endTime,
-                transport: "smooth",
-                textTracks
-              });
-              const logos = parsedContent.logo;
-              if (logos) {
-                logos.forEach((logo) => {
-                  const { title, offset } = logo;
-                  const url = getURLForLogoTitle(title);
-                  if (url) {
-                    const { begin, end } = offset;
-                    overlays.push({
-                      start : video.startTime + (begin || 0),
-                      end : video.endTime - (end || 0),
-                      timescale : 1,
-                      version : 1,
-                      elements : [{
-                        url,
-                        format : "png",
-                        xAxis : "0%",
-                        yAxis : "0%",
-                        height : "100%",
-                        width : "100%",
-                      }],
+    const promises = [];
+
+    for (const parsedContent of parsedContents) {
+      promises.push(
+        new Promise((resolve, reject) => {
+          const videos = parsedContent.video;
+          if (videos) {
+            for(const video of videos) {
+              if (
+                video.type === "CIN" ||
+                video.type === "MUS" ||
+                video.type === "CA" ||
+                video.type === "SA" ||
+                video.type === "EMI" ||
+                video.type === "SER"
+              ) {
+                  getManifestURL(token, video.affaire, video.pgrm).then(({ manifestURL, licenseURL }) => {
+                    const subtitleURL = manifestURL.indexOf(".ism") > 0 ? manifestURL.substring(0, manifestURL.indexOf(".ism")) + ".vtt" : undefined;
+                    const textTracks = [];
+                  
+                    if (subtitleURL) {
+                      const xhr = new XMLHttpRequest();
+                      xhr.open("GET", subtitleURL, false);
+                      xhr.send();
+                      if (xhr.status < 300) {
+                        textTracks.push({
+                          url: subtitleURL,
+                          language: "FRA",
+                          mimeType: "text/vtt",
+                        });
+                      }
+                    }
+                    contents.push({
+                      name: video.title,
+                      url: manifestURL + "/Manifest",
+                      startTime: video.startTime,
+                      endTime: video.endTime,
+                      transport: "smooth",
+                      textTracks
                     });
-                  }
-                });
+                    const logos = parsedContent.logo;
+                    if (logos) {
+                      logos.forEach((logo) => {
+                        const { title, offset } = logo;
+                        const url = getURLForLogoTitle(title);
+                        if (url) {
+                          const { begin, end } = offset;
+                          overlays.push({
+                            start : video.startTime + (begin || 0),
+                            end : video.endTime - (end || 0),
+                            timescale : 1,
+                            version : 1,
+                            elements : [{
+                              url,
+                              format : "png",
+                              xAxis : "0%",
+                              yAxis : "0%",
+                              height : "100%",
+                              width : "100%",
+                            }],
+                          });
+                        }
+                      });
+                    }
+                    getKID(manifestURL).then(({ kid }) => {
+                      kidByAffairePgrm[kid] = licenseURL;
+                      resolve();
+                    }).catch((error) => {
+                      reject(error);
+                    });
+                  }).catch((_) => {
+                    resolve();
+                  });
+              } else {
+                resolve();
               }
-              await getKID(manifestURL).then(({ kid }) => {
-                kidByAffairePgrm[kid] = licenseURL;
-              });
-            } catch(_) {
             }
+          } else {
+            resolve();
+          }
+        })
+      );
+    }
+
+    Promise.all(promises).then(() => {
+      console.log("############## Built Metaplaylist ################");
+
+      const contentsWithBlack = [];
+  
+      contents.forEach((content, i) => {
+        if (i === 0) {
+          contentsWithBlack.push(content);
+        } else {
+          if (content.startTime > contents[i -1].endTime) {
+            const contentStartTime = contents[i - 1].endTime;
+            const contentEndTime = content.startTime; 
+            let startTime = contentStartTime;
+            let endTime = Math.min(startTime + fillingDuration, contentEndTime);
+            let diff = contentEndTime - contentStartTime;
+            do {
+              contentsWithBlack.push({
+                url: fillingManifestURL,
+                endTime,
+                startTime,
+                transport: fillingTransportType,
+              });
+              diff -= fillingDuration;
+              startTime = endTime;
+              endTime = Math.min(startTime + fillingDuration, contentEndTime);
+            } while (diff > 0);
+            contentsWithBlack.push(content);
           }
         }
-      }
-    }
-
-    console.log("############## Built Metaplaylist ################");
-
-    const contentsWithBlack = [];
-
-    contents.forEach((content, i) => {
-      if (i === 0) {
-        contentsWithBlack.push(content);
-      } else {
-        if (content.startTime > contents[i -1].endTime) {
-          const contentStartTime = contents[i - 1].endTime;
-          const contentEndTime = content.startTime; 
-          let startTime = contentStartTime;
-          let endTime = Math.min(startTime + fillingDuration, contentEndTime);
-          let diff = contentEndTime - contentStartTime;
-          do {
-            contentsWithBlack.push({
-              url: fillingManifestURL,
-              endTime,
-              startTime,
-              transport: fillingTransportType,
-            });
-            diff -= fillingDuration;
-            startTime = endTime;
-            endTime = Math.min(startTime + fillingDuration, contentEndTime);
-          } while (diff > 0);
-          contentsWithBlack.push(content);
-        }
-      }
-    });
-
-    // Content Before
-
-    const contentBefore = [];
-    const beforeUntilTime = contentsWithBlack[0].startTime; 
-    const beforeFromTime = beforeUntilTime - timeShiftBufferDepth;
-
-    let startTime = beforeFromTime;
-    let endTime = Math.min(startTime + fillingDuration, beforeUntilTime);
-
-    let diff = beforeUntilTime - beforeFromTime;
-    do {
-      contentBefore.push({
-        url: fillingManifestURL,
-        endTime,
-        startTime,
-        transport: fillingTransportType,
       });
-      diff -= fillingDuration;
-      startTime = endTime;
-      endTime = Math.min(startTime + fillingDuration, beforeUntilTime);
-    } while (diff > 0);
-
-    // Content After
-
-    const contentAfter = [];
-    const afterFromTime = contentsWithBlack[contentsWithBlack.length -1].endTime; 
-    const afterUntilTime = afterFromTime + timeShiftBufferDepth;
-
-    startTime = afterFromTime;
-    endTime = Math.min(startTime + fillingDuration, afterUntilTime);
-
-    diff = afterUntilTime - afterFromTime;
-    do {
-      contentAfter.push({
-        url: fillingManifestURL,
-        endTime,
-        startTime,
-        transport: fillingTransportType,
-      });
-      diff -= fillingDuration;
-      startTime = endTime;
-      endTime = Math.min(startTime + fillingDuration, afterUntilTime);
-    } while (diff > 0);
-
-    const finalContent = contentBefore.concat(contentsWithBlack.concat(contentAfter));
-    
-
-    finalContent.forEach((content) => {
-      content.startTime += 86400;
-      content.endTime += 86400;
-    });
-
-    overlays.forEach((overlay) => {
-      overlay.start += 86400;
-      overlay.end += 86400;
-    });
-
-    const metaplaylist = {
-      metadata: {
-        name: "",
-        mplVersion: "1.0",
-        generatedAt: "",
-      },
-      contents: finalContent,
-      attributes: {
-        timeShiftBufferDepth,
-      },
-      overlays,
-    };
-
-    if (contents.length >= 1) {
-      const str = JSON.stringify(metaplaylist);
-      const blob = new Blob([str], { type: "application/json"});
-      const manifestURL = URL.createObjectURL(blob);
-      getServerCertifcate().then((certificate) => {
-        console.log("############## Load video ################");
-        player.loadVideo({
-          url: manifestURL,
-          transport: "metaplaylist",
-          autoPlay: true,
-          textTrackElement,
-          overlayElement,
-          keySystems: [
-            {
-              type: "widevine",
-              getLicense,
-              serverCertificate: certificate,
-            }
-          ]
+  
+      // Content Before
+  
+      const contentBefore = [];
+      const beforeUntilTime = contentsWithBlack[0].startTime; 
+      const beforeFromTime = beforeUntilTime - timeShiftBufferDepth;
+  
+      let startTime = beforeFromTime;
+      let endTime = Math.min(startTime + fillingDuration, beforeUntilTime);
+  
+      let diff = beforeUntilTime - beforeFromTime;
+      do {
+        contentBefore.push({
+          url: fillingManifestURL,
+          endTime,
+          startTime,
+          transport: fillingTransportType,
         });
+        diff -= fillingDuration;
+        startTime = endTime;
+        endTime = Math.min(startTime + fillingDuration, beforeUntilTime);
+      } while (diff > 0);
+  
+      // Content After
+  
+      const contentAfter = [];
+      const afterFromTime = contentsWithBlack[contentsWithBlack.length -1].endTime; 
+      const afterUntilTime = afterFromTime + timeShiftBufferDepth;
+  
+      startTime = afterFromTime;
+      endTime = Math.min(startTime + fillingDuration, afterUntilTime);
+  
+      diff = afterUntilTime - afterFromTime;
+      do {
+        contentAfter.push({
+          url: fillingManifestURL,
+          endTime,
+          startTime,
+          transport: fillingTransportType,
+        });
+        diff -= fillingDuration;
+        startTime = endTime;
+        endTime = Math.min(startTime + fillingDuration, afterUntilTime);
+      } while (diff > 0);
+  
+      const finalContent = contentBefore.concat(contentsWithBlack.concat(contentAfter));
+      
+  
+      finalContent.forEach((content) => {
+        content.startTime += 86400;
+        content.endTime += 86400;
       });
-    }
+  
+      overlays.forEach((overlay) => {
+        overlay.start += 86400;
+        overlay.end += 86400;
+      });
+  
+      const metaplaylist = {
+        metadata: {
+          name: "",
+          mplVersion: "1.0",
+          generatedAt: "",
+        },
+        contents: finalContent,
+        attributes: {
+          timeShiftBufferDepth,
+        },
+        overlays,
+      };
+  
+      if (contents.length >= 1) {
+        const str = JSON.stringify(metaplaylist);
+        const blob = new Blob([str], { type: "application/json"});
+        const manifestURL = URL.createObjectURL(blob);
+        getServerCertifcate().then((certificate) => {
+          console.log("############## Load video ################");
+          player.loadVideo({
+            url: manifestURL,
+            transport: "metaplaylist",
+            autoPlay: true,
+            textTrackElement,
+            overlayElement,
+            keySystems: [
+              {
+                type: "widevine",
+                getLicense,
+                serverCertificate: certificate,
+              }
+            ]
+          });
+        });
+      }
+    });
   });
 }
