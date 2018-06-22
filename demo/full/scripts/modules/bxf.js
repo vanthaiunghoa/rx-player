@@ -235,7 +235,7 @@ const fillingDuration = 600;
 const imageDictionnary = {
   "Déconseillé -10ans": "http://127.0.0.1:8089/tmp/picto10.png",
 }
-const timeShiftBufferDepth = 10000;
+const timeShiftBufferDepth = 60 * 60 * 8;
 
 function getURLForLogoTitle(title) {
   return imageDictionnary[title];
