@@ -344,12 +344,28 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
           ) {
             try {
               const { manifestURL, licenseURL } = await getManifestURL(token, video.affaire, video.pgrm);
+              const subtitleURL = manifestURL.indexOf(".ism") > 0 ? manifestURL.substring(0, manifestURL.indexOf(".ism")) + ".vtt" : undefined;
+              const textTracks = [];
+
+              if (subtitleURL) {
+                const xhr = new XMLHttpRequest();
+                xhr.open("GET", subtitleURL, false);
+                xhr.send();
+                if (xhr.status < 300) {
+                  textTracks.push({
+                    url: subtitleURL,
+                    language: "FRA",
+                    mimeType: "text/vtt",
+                  });
+                }
+              }
               contents.push({
                 name: video.title,
                 url: manifestURL + "/Manifest",
                 startTime: video.startTime,
                 endTime: video.endTime,
                 transport: "smooth",
+                textTracks
               });
               const logos = parsedContent.logo;
               if (logos) {
@@ -471,7 +487,7 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
       overlay.start += 86400;
       overlay.end += 86400;
     });
-
+    debugger;
     const metaplaylist = {
       metadata: {
         name: "",
