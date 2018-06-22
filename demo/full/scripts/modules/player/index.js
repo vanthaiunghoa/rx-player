@@ -39,6 +39,7 @@ const PLAYER = (
     bufferGap: undefined,
     currentTime: undefined,
     duration: undefined,
+    epg: [],
     error: null,
     hasEnded: false,
     hasLoadedContent: false,
@@ -78,7 +79,9 @@ const PLAYER = (
 
     LOAD: (arg) => {
       if (arg.transport === "bxf") {
-        loadBXF(arg.url, textTrackElement, overlayElement);
+        loadBXF(arg.url, textTrackElement, overlayElement).then((epg) => {
+          state.set({ epg });
+        });
       } else {
         player.loadVideo(Object.assign({
           textTrackElement,

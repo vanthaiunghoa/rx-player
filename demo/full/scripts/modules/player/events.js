@@ -92,6 +92,7 @@ const linkPlayerEventsToState = (player, state, $destroy) => {
       stateUpdates.availableVideoBitrates = [];
       stateUpdates.availableLanguages = [];
       stateUpdates.availableSubtitles = [];
+      stateUpdates.epg = [];
       stateUpdates.images = [];
       stateUpdates.currentTime = undefined;
       stateUpdates.bufferGap = undefined;

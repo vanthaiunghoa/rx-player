@@ -1,0 +1,43 @@
+diff --git a/demo/full/scripts/modules/bxf.js b/demo/full/scripts/modules/bxf.js
+index 42876b37..b75f8700 100644
+--- a/demo/full/scripts/modules/bxf.js
++++ b/demo/full/scripts/modules/bxf.js
+@@ -328,6 +328,7 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
+       kidByAffairePgrm[kid] = fillingLicenseURL;
+     });
+ 
++    const epg = [];
+     const contents = [];
+     const overlays = [];
+     for (const parsedContent of parsedContents) {
+@@ -344,6 +345,11 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
+           ) {
+             try {
+               const { manifestURL, licenseURL } = await getManifestURL(token, video.affaire, video.pgrm);
++              epg.push({
++                startTime: video.startTime,
++                endTime: video.endTime,
++                title: video.title,
++              });
+               contents.push({
+                 name: video.title,
+                 url: manifestURL + "/Manifest",
+@@ -467,6 +473,11 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
+       content.endTime += 86400;
+     });
+ 
++    epg.forEach((prog) => {
++      prog.startTime += 86400;
++      prog.endTime += 86400;
++    });
++
+     overlays.forEach((overlay) => {
+       overlay.start += 86400;
+       overlay.end += 86400;
+@@ -507,5 +518,6 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
+         });
+       });
+     }
++    return epg;
+   });
+ }
