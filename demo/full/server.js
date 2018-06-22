@@ -17,11 +17,19 @@ const demoCompiler = Webpack(webpackDemoConfig);
 const libCompiler = Webpack(webpackLibConfig);
 
 const serverDemo = new WebpackDevServer(demoCompiler, {
+  https: true,
+  allowedHosts: [
+    "webtv-tools.canal-bis.com",
+  ],
   contentBase: path.join(__dirname, "./"),
   compress: true,
 });
 
 const serverLib = new WebpackDevServer(libCompiler, {
+  https: true,
+  allowedHosts: [
+    "webtv-tools.canal-bis.com",
+  ],
   contentBase: path.join(__dirname, "./"),
   compress: true,
 });
