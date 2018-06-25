@@ -18,7 +18,7 @@ import { Observable ,  Observer } from "rxjs";
 import { RequestError, RequestErrorTypes } from "../../errors";
 
 const DEFAULT_RESPONSE_TYPE : XMLHttpRequestResponseType = "json";
-const DEFAULT_REQUEST_TIMEOUT = 30 * 1000; // TODO move to config?
+const DEFAULT_REQUEST_TIMEOUT = 60 * 1000; // TODO move to config?
 
 // Interface for "progress" events
 export interface IRequestProgress {
