@@ -89,6 +89,7 @@ const PLAYER = (
             offlineRetry: Infinity,
           },
         }, arg)).then((epg) => {
+          state.set({ epg: [] });
           state.set({ epg });
         });
       } else {
