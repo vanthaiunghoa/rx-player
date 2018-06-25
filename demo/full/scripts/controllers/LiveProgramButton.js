@@ -27,7 +27,7 @@ function LiveProgramButton({
       />
     );
   }
-  const onClick = function onNextProgramClick() {
+  const onClick = function onLiveProgramClick() {
     player.dispatch("SEEK", Date.now() / 1000);
   };
   return (
