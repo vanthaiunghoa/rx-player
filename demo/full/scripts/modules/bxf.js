@@ -388,6 +388,23 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
 
                       console.log("DIFF", video.title, scaledDuration, video.endTime - video.startTime);
 
+                      overlays.push({
+                        start: video.startTime,
+                        end: video.startTime + 10,
+                        timescale: 1,
+                        version: "1",
+                        elements: [
+                          {
+                            url: channelLogoURL,
+                            format : "png",
+                            xAxis : "90%",
+                            yAxis : "10%",
+                            height : "10%",
+                            width : "12%",
+                          }
+                        ],
+                      });
+
                       contents.push({
                         name: video.title,
                         url: completeManifestURL,
