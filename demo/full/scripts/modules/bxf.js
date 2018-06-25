@@ -585,6 +585,14 @@ export default function loadBXF(bxfURL, textTrackElement, overlayElement) {
             url: manifestURL,
             transport: "metaplaylist",
             autoPlay: true,
+            defaultAudioTrack: {
+              language: "eng",
+              audioDescription: false,
+            },
+            defaultTextTrack: {
+              language: "fra",
+              closedCaption: false,
+            },
             textTrackElement,
             overlayElement,
             keySystems: [
