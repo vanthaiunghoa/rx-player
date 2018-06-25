@@ -643,6 +643,14 @@ export default function loadBXF({
             url: manifestURL,
             transport: "metaplaylist",
             autoPlay: true,
+            defaultAudioTrack: {
+              language: "eng",
+              audioDescription: false,
+            },
+            defaultTextTrack: {
+              language: "fra",
+              closedCaption: false,
+            },
             textTrackElement,
             overlayElement,
             keySystems: [
