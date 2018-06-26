@@ -252,7 +252,7 @@ function getKID(url) {
 /* Globals */
 const kidByAffairePgrm = {};
 // const token = window.passToken;
-const token = "10501gyAg9sBP2lGjIPALpC0gJ3Eu4ac472FHmzVACz72Y6clufa87cS847eNK_UPibXm2y_jjW65kpTFNn5HgJ8-YETgsaN7Ssphgn-JLoABI_Gh-_Jco3eiBNuy0aKcAB_gP2h9IWL27kCPP2_JcTkitwF37G9-SHSN_IMiF_WxHmcTGZh7FFtj7HI9c2rokbDEJhiTMZDYoWLRN6C7CDSrc4qwlboWdnSvNgtCB6j69ggNkbAIk1Swr2ugTJ3yA5iz_6o_f9_3Je4jRfB8Zaupj3WdH4Fv02bjD2TMRzTrmmMiyqFM_uUMlux1FYa4uWNWt5YVop5MaAgNjxQCCf6-YSvfWdvBk627XnySlUMBKsj55c3s8OMceJbKdPJOF-ExHv5zscplLJ7zYuGAYQ3qlIAqrH387lBBe33Bn5t92EOvolp439LBWkiJbZwudkNWoSyseC9GfRSKHeV1SoA3RlnI8jlWQRBpBY--QJkC6HbrCv9kr5HK2xoUdRGuoGfr8vRqw6XDbd2ydEJZGnB9cVxbVuFiKqulFwRDskxaZNds3oYVe2KJ9lJimwznWYmAfkMsgBoVRPKmfxxqUD4FFAZLqsKt-f9bwNX1MMf_ewckYSBfzL3WNxTMz133aT6eWBFRAeVrPcxdASIAMEquxMpEcb5TIu5UGepepzqLAETyaL9atdVOY4J7hB9pPCc1pD1E6ymSoQ4jnUNLHLusy_FqefvIFFeOXPbEQDPi_L9TH8pv7I69clXHyrEEWDf-UOaWsTS5Fco6CfJbQJ5uEY0yZtrOZw4vi0VOevDnWo-hUWbgtGI1Ja_0HG1xsqywKq23MH8UTFkhlQHgQemKwV42MntJQ431BJA37Sg_Q9zD2fRyWjpKJEp5mrSl4Y8KHdEq-sGSjjPBx8ODxHDVHO5_DmPnaDlGrXfFl5Y6phjrW5l_E38BzK2Ri53k1hJpNmS8RaxsaJRjxJ4szdFotE18CND548Wd2VZNvXZvQGH1tHq_ywZtSBjM64odPEsXOmd0lbWuUnjyDL9CglPy0NUbjTWs94CyV9GXdYhM-9hICttSo3IATT0bcM35Cu4z4Vff65FTLBmty0MlY78FDSJbnuPlGPTL78xjzyRXK41ZRczWDMAGOxGheT_sZzch1aVX0mmcEMqgajSGOON9UGrwqKYWHMksYLMd6Snd5eqCKFDHAWuLy72qj3Vn8t1bIn3jGtw31mdHp1ibC4IvlXHK5IS50lRjJXc3WRQxQTV0A_eirSmJm-Lye3PQXAveM7GxpuKPEv-QQL2jJSk8Iw-6gL2DtCJRtXQ_1rJSmZdDB59cEJNzlH48w-lPmDQdmzfss4DMzTInoFRSOnlj_Q..";
+const token = "10501iObW9VdwlLPyTU1NGuydH2UNMmVjMuw6wD_sHZhPB3tcSg3FhHD0ukLdfjJ34aqzhKel1x1XXbmsv_tonybGZrptgPaert3HD6xF6tZiTwy7r0iwvEKvFuZsfyrz7m6ux32pYsjwiu7aNbZ1HiW-yMLMoaaLz2iGmt_O_0nwWLWMyhxQm_mqmwoUZGeglG84XoCyr3LgOVwHiU5LX9fVL1_hPptxfd_n6BGwAno8pB_u0aPjfp1XhEP2XOcEsA5nmH94azV-BPgSXwlFVU_-viNxijmpdUgs62qGLz4vKfluMTVzkdhMuhcSFsWGeCWfrZRDT4cvvxEGxX5E5P1i87P-Dc7FrM2D73Fs--6rc2re2f54_EddZ4CDI-7xiBW2ram14CQRjQsCYipAa1ESh63V-DSpoSGpUEDFa9oBxCAiV-_R5aCf9FeloUT60rb33CHdmRE_WlGW7bPgalEjw8fXIwr3pndmd3MMw2-YcTdM2YlAhK9UcT2t8a-0yQOniMiiom9gjjhYy9D11tqVa8h7JMMEqgCnMNp9RDzFZw6e8yxeuY1YN7CSTypK7j2-mT5l41XnYqqzEPiGzuRMSTEw_CLmbgmeEguAjmBQucWwX0l86tgFeapYWZLybjmLO1V9z1w4CUfBW8KBcl81SXDK6gi067O319gjr_bj_VV1VBrgwG5uQT1jn9AgTJU2Uo_Xvxv7ex5VHD_fKbifYsNaSHWhsPIwqYe9l5rcR5IaHwpBnEBPYOjgQAOCRiI0d0P8eUuy1TI0GIOBImlT7vcaWzyJWUXMQWiSoQOdy4HPXceV-ohSLPYFqKFAMaB7qlTrXsbEzvcwgVgUyyqs5gt8yT_LXBwNr19aTfmzBcK0_Ix_M3DxR9mT5s93cVNOvk4lRHWnhqeXUvrTbCBjTAFSqK1ZlDepLSRdlPBWv-1tFCQPLJvaK1w_33nJ9pJ2M_bOiHW-lMooyfxzjdIvve1i2m_oUplykmYtjt7jAHucFStw8WrfCADjpzGzNe50_eUfjUXajfA0iy5AmRYDTR4sGDNFmrzdU7DVFxn_Rin98qsOUucZ48tq0rrgYqnIkQssA0wipzKpGcjVlULzLiponvRuLqkSaWiFOaoLP5zjJdf6vBptFHOJfTUbPaC8wd93FWjF9Gol9PL8p59rIelnyRysiHg1h5BAwpSajy4S0rGE5O3ejwqVKjTbioPvDSApw8daGmnxuiXbulEPsGLSC5VfJd69EEmv7a1YLWOwg8KToAtRum-rVvq_2s-72Twd4AMDYivKePRyd-elVktef4iBCURw8FN_wF3kr6zLCbTEXRIUGiHB1p1sJ0tEQMTqh0EZ1U7bM9ytavN_EO2l8vIq0VVnSYJCYF6luWrBHz6Xbd_J5M9n025qXPkM";
 const fillingManifestURL = "http://hss-vod-aka-test.canal-bis.com/ondemand/rx-test/index.ism/manifest";
 const fillingLicenseURL = "https://secure-webtv.canal-bis.com/WebPortal-vabf/TestDRM/api/Widevine";
 const fillingTransportType = "smooth";
@@ -347,6 +347,7 @@ export default function loadBXF({
     const epg = [];
     const contents = [];
     const overlays = [];
+    const logoOverlays = [];
 
     const promises = [];
 
@@ -393,23 +394,6 @@ export default function loadBXF({
 
                       console.log("DIFF", video.title, scaledDuration, video.endTime - video.startTime);
 
-                      overlays.push({
-                        start: video.startTime,
-                        end: video.startTime + 10,
-                        timescale: 1,
-                        version: "1",
-                        elements: [
-                          {
-                            url: channelLogoURL,
-                            format : "png",
-                            xAxis : "90%",
-                            yAxis : "10%",
-                            height : "10%",
-                            width : "12%",
-                          }
-                        ],
-                      });
-
                       contents.push({
                         name: video.title,
                         url: completeManifestURL,
@@ -426,7 +410,7 @@ export default function loadBXF({
                           const url = getURLForPicto(title);
                           if (url) {
                             const { begin, end } = offset;
-                            overlays.push({
+                            const overlay = {
                               start : video.startTime + (begin || 0),
                               end : video.endTime - (end || 0),
                               timescale : 1,
@@ -439,8 +423,41 @@ export default function loadBXF({
                                 height : "100%",
                                 width : "100%",
                               }],
+                            };
+                            const logoStart = video.startTime;
+                            const logoEnd = logoStart + 10;
+                            overlay.start = logoEnd
+                            const overlayData = JSON.parse(JSON.stringify(overlay));
+                            overlayData.elements.push({
+                              url: channelLogoURL,
+                              format: "png",
+                              xAxis: "85%",
+                              yAxis: "10%",
+                              height: "10%",
+                              width: "12%",
                             });
+                            overlayData.start = logoStart;
+                            overlayData.end = logoEnd; 
+                            logoOverlays.push(overlayData);
+                            overlays.push(overlay);
                           }
+                        });
+                      } else {
+                        logoOverlays.push({
+                          start: video.startTime,
+                          end: video.startTime + 20,
+                          timescale: 1,
+                          version: 1,
+                          elements: [
+                            {
+                              url: channelLogoURL,
+                              format: "png",
+                              xAxis: "85%",
+                              yAxis: "10%",
+                              height: "10%",
+                              width: "12%",
+                            }
+                          ],
                         });
                       }
                       getKID(manifestURL).then(({ kid }) => {
@@ -470,6 +487,8 @@ export default function loadBXF({
     }
 
     return Promise.all(promises).then(() => {
+      const finalOverlays = overlays.concat(logoOverlays);
+
       console.log("############## Built Metaplaylist ################");
 
       const contentsWithBlack = [];
@@ -566,15 +585,15 @@ export default function loadBXF({
         prog.endTime += offset;
       });
 
-      overlays.forEach((overlay) => {
+      finalOverlays.forEach((overlay) => {
         overlay.start += offset;
         overlay.end += offset;
       });
 
       epg.sort((A, B) => A.startTime - B.startTime);
       finalContent.sort((A, B) => A.startTime - B.startTime);
-      overlays.sort((A, B) => A.startTime - B.startTime);
-
+      finalOverlays.sort((A, B) => A.start - B.start);
+  
       const metaplaylist = {
         metadata: {
           name: "",
@@ -585,7 +604,7 @@ export default function loadBXF({
         attributes: {
           timeShiftBufferDepth,
         },
-        overlays,
+        overlays: finalOverlays,
       };
 
       if (contents.length >= 1) {
