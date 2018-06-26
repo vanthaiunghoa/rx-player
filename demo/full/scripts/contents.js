@@ -108,7 +108,7 @@ export default [
   },
   {
     "name": "Mardi 26 juin Canal + series",
-    "url": "http://127.0.0.1:3000/lundi.bxf",
+    "url": "http://127.0.0.1:3000/mardi.bxf",
     "transport": "bxf",
     "live": false,
   },
