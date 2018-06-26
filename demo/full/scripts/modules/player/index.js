@@ -79,7 +79,7 @@ const PLAYER = (
 
     LOAD: (arg) => {
       if (arg.transport === "bxf") {
-        loadBXF(arg.url, textTrackElement, overlayElement).then((epg) => {
+        loadBXF(arg).then((epg) => {
           state.set({ epg });
         });
       } else {

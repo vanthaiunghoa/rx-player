@@ -33,6 +33,7 @@ class ContentList extends React.Component {
 
     const {
       url,
+      beginning,
       transport,
       autoPlay,
       supplementaryImageTracks,
@@ -41,6 +42,7 @@ class ContentList extends React.Component {
     } = content;
     loadVideo({
       url,
+      beginning,
       transport,
       autoPlay: !(autoPlay === false),
       supplementaryImageTracks,

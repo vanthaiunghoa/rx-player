@@ -106,4 +106,32 @@ export default [
     "transport": "directfile",
     "live": false,
   },
+  {
+    "name": "Jeudi 21 juin Canal + series",
+    "url": "http://127.0.0.1:3000/jeudi.bxf",
+    "transport": "bxf",
+    "live": false,
+    "beginning": 1529564400,
+  },
+  {
+    "name": "Vendredi 22 juin Canal + series",
+    "url": "http://127.0.0.1:3000/vendredi.bxf",
+    "transport": "bxf",
+    "live": false,
+    "beginning": 1529650800,
+  },
+  {
+    "name": "Samedi 23 juin Canal + series",
+    "url": "http://127.0.0.1:3000/samedi.bxf",
+    "transport": "bxf",
+    "live": false,
+    "beginning": 1529737200000,
+  },
+  {
+    "name": "Lundi 25 juin Canal + series",
+    "url": "http://127.0.0.1:3000/lundi.bxf",
+    "transport": "bxf",
+    "live": false,
+    "beginning": 1529910000,
+  },
 ];
