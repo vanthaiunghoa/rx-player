@@ -107,6 +107,12 @@ export default [
     "live": false,
   },
   {
+    "name": "Mardi 26 juin Canal + series",
+    "url": "http://127.0.0.1:3000/lundi.bxf",
+    "transport": "bxf",
+    "live": false,
+  },
+  {
     "name": "Jeudi 21 juin Canal + series",
     "url": "http://127.0.0.1:3000/jeudi.bxf",
     "transport": "bxf",
