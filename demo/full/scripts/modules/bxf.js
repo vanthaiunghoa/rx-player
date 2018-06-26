@@ -569,7 +569,7 @@ export default function loadBXF({
         .concat(contentsWithBlack.concat(contentAfter));
 
       let offset = 0;
-      let startAt = 0;
+      let startAt = Date.now();
       if (beginning != null) {
         offset = (Date.now() / 1000 - beginning) - 4 * 60 * 60;
         startAt = Date.now() / 1000;
