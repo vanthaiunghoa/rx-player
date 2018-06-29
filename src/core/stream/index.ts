@@ -55,6 +55,7 @@ import { IKeySystemOption } from "../eme/types";
 import {
   createManifestPipeline,
   IPipelineOptions,
+  parseManifestData,
   SegmentPipelinesManager,
 } from "../pipelines";
 import SourceBufferManager, {
@@ -114,6 +115,7 @@ export interface IStreamOptions {
     maxBufferBehind$ : Observable<number>;
   };
   clock$ : Observable<IStreamClockTick>;
+  initialManifest : any|null;
   keySystems : IKeySystemOption[];
   networkConfig: {
     manifestRetry? : number;
@@ -150,6 +152,7 @@ export default function Stream({
   autoPlay,
   bufferOptions,
   clock$,
+  initialManifest,
   keySystems,
   networkConfig,
   speed$,
@@ -220,7 +223,15 @@ export default function Stream({
   const stream$ = createMediaSource(videoElement).pipe(
     mergeMap(mediaSource => {
       return observableCombineLatest(
-        fetchManifest(url),
+        initialManifest == null ?
+          fetchManifest(url) :
+          parseManifestData(
+            transport,
+            initialManifest,
+            warning$,
+            supplementaryTextTracks,
+            supplementaryImageTracks
+          ),
         onSourceOpen$(mediaSource).pipe(take(1))
       ).pipe(mergeMap(([manifest]) => {
         return initializeStream(mediaSource, manifest);
