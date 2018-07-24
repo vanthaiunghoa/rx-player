@@ -770,6 +770,24 @@ and limitations under the License.
             ABR_STARVATION_GAP: 5,
             OUT_OF_STARVATION_GAP: 7,
             /**
+   * Half-life, in seconds for a fastly-evolving exponential weighted moving
+   * average.
+   * The lower it is, the faster the ABR logic will react to the bandwidth
+   * falling quickly.
+   * Should be kept to a lower number than ABR_SLOW_EMA for coherency reasons.
+   * @type {Number}
+   */
+            ABR_FAST_EMA: 2,
+            /**
+   * Half-life, in seconds for a slowly-evolving exponential weighted moving
+   * average.
+   * The lower it is, the faster the ABR logic is going to react to recent
+   * bandwidth variation, on the higher and on the lower side.
+   * Should be kept to a higher number than ABR_FAST_EMA for coherency reasons.
+   * @type {Number}
+   */
+            ABR_SLOW_EMA: 10,
+            /**
    * Number of seconds ahead in the buffer after which playback will resume when
    * seeking on an unbuffered part of the stream.
    * @type {Number}
@@ -7570,7 +7588,7 @@ object-assign
             segmentStart = segment.time, segmentDuration = segment.duration) : (maxDecodeTimeDelta = Math.min(.9 * timescale, null != segment.duration ? segment.duration / segment.timescale * timescale / 4 : .25), 
             segmentStart = (segment.time || 0) / segment.timescale * timescale, segmentDuration = null != segment.duration ? segment.duration / segment.timescale * timescale : void 0), 
             decodeTime >= 0 && (startTime = decodeTime), trunDuration >= 0 && (null == segmentDuration || Math.abs(trunDuration - segmentDuration) <= maxDecodeTimeDelta) && (duration = trunDuration), 
-            null == startTime) {
+            null == startTime) if (0 === _sidxSegments.length) startTime = segmentStart; else {
                 var sidxStart = _sidxSegments[0].time;
                 if (sidxStart >= 0) {
                     var sidxTimescale = _sidxSegments[0].timescale;
@@ -14055,7 +14073,8 @@ object-assign
                         var parsedAdaptation = parsedAdaptations[type];
                         parsedAdaptation ? isMainAdaptation ? (
                         // put "main" adaptation as the first
-                        parsedAdaptation.unshift(parsedAdaptationSet), acc.mainAdaptations[type] = parsedAdaptationSet) : parsedAdaptation.push(parsedAdaptationSet) : parsedAdaptations[type] = [ parsedAdaptationSet ];
+                        parsedAdaptation.unshift(parsedAdaptationSet), acc.mainAdaptations[type] = parsedAdaptationSet) : parsedAdaptation.push(parsedAdaptationSet) : (parsedAdaptations[type] = [ parsedAdaptationSet ], 
+                        isMainAdaptation && (acc.mainAdaptations[type] = parsedAdaptationSet));
                     }
                     return {
                         adaptations: parsedAdaptations,
@@ -14713,19 +14732,19 @@ object-assign
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */        var FAST_EMA = 2, SLOW_EMA = 10, ABR_MINIMUM_TOTAL_BYTES = config.a.ABR_MINIMUM_TOTAL_BYTES, ABR_MINIMUM_CHUNK_SIZE = config.a.ABR_MINIMUM_CHUNK_SIZE, bandwidth_estimator = function() {
+ */        var ABR_MINIMUM_TOTAL_BYTES = config.a.ABR_MINIMUM_TOTAL_BYTES, ABR_MINIMUM_CHUNK_SIZE = config.a.ABR_MINIMUM_CHUNK_SIZE, ABR_FAST_EMA = config.a.ABR_FAST_EMA, ABR_SLOW_EMA = config.a.ABR_SLOW_EMA, bandwidth_estimator = function() {
             function BandwidthEstimator() {
                 bandwidth_estimator_classCallCheck(this, BandwidthEstimator), 
                 /**
      * A fast-moving average.
      * @private
      */
-                this._fast = new ewma(FAST_EMA), 
+                this._fast = new ewma(ABR_FAST_EMA), 
                 /**
      * A slow-moving average.
      * @private
      */
-                this._slow = new ewma(SLOW_EMA), 
+                this._slow = new ewma(ABR_SLOW_EMA), 
                 /**
      * Number of bytes sampled.
      * @private
@@ -14734,9 +14753,9 @@ object-assign
             }
             /**
    * Takes a bandwidth sample.
-   * @param {number} durationMs The amount of time, in milliseconds, for a
+   * @param {number} durationMs - The amount of time, in milliseconds, for a
    *   particular request.
-   * @param {number} numBytes The total number of bytes transferred in that
+   * @param {number} numBytes - The total number of bytes transferred in that
    *   request.
    */            return BandwidthEstimator.prototype.addSample = function addSample(durationInMs, numberOfBytes) {
                 if (!(numberOfBytes < ABR_MINIMUM_CHUNK_SIZE)) {
@@ -14758,9 +14777,16 @@ object-assign
    * Reset the bandwidth estimation.
    */
             BandwidthEstimator.prototype.reset = function reset() {
-                this._fast = new ewma(FAST_EMA), this._slow = new ewma(SLOW_EMA), this._bytesSampled = 0;
+                this._fast = new ewma(ABR_FAST_EMA), this._slow = new ewma(ABR_SLOW_EMA), this._bytesSampled = 0;
             }, BandwidthEstimator;
         }(), array_find_index = __webpack_require__(89), array_find_index_default = /* */ __webpack_require__.n(array_find_index);
+        /**
+ * Calculate a mean bandwidth based on the bytes downloaded and the amount
+ * of time needed to do so.
+ *
+ * Heavily "inspired" from the Shaka-Player's "ewma bandwidth estimator".
+ * @class BandwidthEstimator
+ */        
         // CONCATENATED MODULE: ./src/core/abr/filterByBitrate.ts
         /**
  * Copyright 2015 CANAL+ Group
@@ -14873,7 +14899,7 @@ object-assign
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */        var ABR_STARVATION_GAP = config.a.ABR_STARVATION_GAP, OUT_OF_STARVATION_GAP = config.a.OUT_OF_STARVATION_GAP, ABR_STARVATION_FACTOR = config.a.ABR_STARVATION_FACTOR, ABR_REGULAR_FACTOR = config.a.ABR_REGULAR_FACTOR;
+ */        var ABR_REGULAR_FACTOR = config.a.ABR_REGULAR_FACTOR, ABR_STARVATION_FACTOR = config.a.ABR_STARVATION_FACTOR, ABR_STARVATION_GAP = config.a.ABR_STARVATION_GAP, OUT_OF_STARVATION_GAP = config.a.OUT_OF_STARVATION_GAP;
         /**
  * Returns an observable emitting only the representation concerned by the
  * bitrate ceil given.
@@ -21760,7 +21786,7 @@ object-assign
         !function initializeFeaturesObject() {
             features.a.emeManager = __webpack_require__(65).default, features.a.imageBuffer = __webpack_require__(126).default, 
             features.a.imageParser = __webpack_require__(125).default, features.a.transports.smooth = __webpack_require__(115).default, 
-            features.a.transports.dash = __webpack_require__(116).default, features.a.transports.rxpmanifest = __webpack_require__(113).default, 
+            features.a.transports.dash = __webpack_require__(116).default, features.a.transports["rxp-manifest"] = __webpack_require__(113).default, 
             features.a.nativeTextTracksBuffer = __webpack_require__(110).default, features.a.nativeTextTracksParsers.vtt = __webpack_require__(124).default, 
             features.a.nativeTextTracksParsers.ttml = __webpack_require__(123).default, features.a.nativeTextTracksParsers.sami = __webpack_require__(122).default, 
             features.a.nativeTextTracksParsers.srt = __webpack_require__(121).default, features.a.htmlTextTracksBuffer = __webpack_require__(114).default, 
