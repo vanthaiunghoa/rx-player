@@ -49,6 +49,7 @@ import { ITransportPipelines } from "../../net";
 import ABRManager, {
   IABRMetric,
   IABRRequest,
+  IABRToleranceOptions,
 } from "../abr";
 import BufferManager from "../buffer";
 import { IKeySystemOption } from "../eme/types";
@@ -106,6 +107,7 @@ export interface IStreamOptions {
     maxAutoBitrates : Partial<Record<IBufferType, number>>;
     throttle : Partial<Record<IBufferType, Observable<number>>>;
     limitWidth : Partial<Record<IBufferType, Observable<number>>>;
+    abrToleranceOptions : Partial<Record<IBufferType, IABRToleranceOptions>>;
   };
   autoPlay : boolean;
   bufferOptions : {
