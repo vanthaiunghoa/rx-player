@@ -15,10 +15,7 @@
  */
 
 import log from "../../../../log";
-import {
-  parseBoolean,
-  parseFrameRate,
-} from "../helpers";
+import { parseBoolean } from "../helpers";
 import parseSegmentBase, {
   IParsedSegmentBase,
 } from "./SegmentBase";
@@ -50,8 +47,10 @@ export interface IRepresentationAttributes {
   audioSamplingRate? : string;
   bitrate? : number;
   codecs? : string;
+  channels? : number;
   codingDependency? : boolean;
-  frameRate? : number;
+  framerate? : string;
+  samplerate? : number;
   height? : number;
   id? : string;
   maxPlayoutRate? : number;
@@ -132,15 +131,15 @@ function parseRepresentationAttributes(
         attributes.codingDependency = parseBoolean(attribute.value);
         break;
 
-      case "frameRate": {
-        const frameRate = parseFrameRate(attribute.value);
-        if (isNaN(frameRate)) {
-          log.warn(`DASH: invalid frameRate ("${attribute.value}")`);
-        } else {
-          attributes.frameRate = frameRate;
-        }
-      }
+      case "frameRate":
+        attributes.framerate = attribute.value;
         break;
+
+      case "sampleRate":
+        attributes.samplerate = parseInt(attribute.value, 10);
+
+      case "numChannels":
+        attributes.channels = parseInt(attribute.value, 10);
 
       case "height": {
         const height = parseInt(attribute.value, 10);

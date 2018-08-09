@@ -472,12 +472,22 @@ export default function parseManifest(
                 adaptation.attributes.codingDependency;
             }
 
-            if (representation.attributes.frameRate != null) {
-              parsedRepresentation.frameRate =
-                representation.attributes.frameRate;
-            } else if (adaptation.attributes.frameRate != null) {
-              parsedRepresentation.frameRate =
-                adaptation.attributes.frameRate;
+            if (representation.attributes.framerate != null) {
+              parsedRepresentation.framerate =
+                representation.attributes.framerate;
+            } else if (adaptation.attributes.framerate != null) {
+              parsedRepresentation.framerate =
+                adaptation.attributes.framerate;
+            }
+
+            if (representation.attributes.samplerate != null) {
+              parsedRepresentation.samplerate =
+                representation.attributes.samplerate;
+            }
+
+            if (representation.attributes.channels != null) {
+              parsedRepresentation.channels =
+                representation.attributes.channels;
             }
 
             if (representation.attributes.height != null) {
@@ -627,8 +637,8 @@ export default function parseManifest(
             if (adaptation.attributes.mimeType) {
               idString += `-${adaptation.attributes.mimeType}`;
             }
-            if (adaptation.attributes.frameRate) {
-              idString += `-${adaptation.attributes.frameRate}`;
+            if (adaptation.attributes.framerate) {
+              idString += `-${adaptation.attributes.framerate}`;
             }
 
             if (idString.length === type.length) {

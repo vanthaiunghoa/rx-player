@@ -232,7 +232,7 @@ export default class ABRManager {
     bitrate: undefined|number;
     representation: Representation|null;
   }> {
-    return this._lazilyCreateChooser(type).get$(clock$, representations);
+    return this._lazilyCreateChooser(type).get$(clock$, representations, type);
   }
 
   /**

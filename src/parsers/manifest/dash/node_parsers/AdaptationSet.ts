@@ -72,7 +72,7 @@ export interface IAdaptationSetAttributes {
   codecs? : string;
   codingDependency? : boolean;
   contentType? : string;
-  frameRate? : number;
+  framerate? : string;
   group? : number;
   height? : number;
   id? : string;
@@ -320,14 +320,8 @@ function parseAdaptationSetAttributes(
         parsedAdaptation.codingDependency = parseBoolean(attribute.value);
         break;
 
-      case "frameRate": {
-        const frameRate = parseFrameRate(attribute.value);
-        if (isNaN(frameRate)) {
-          log.warn(`DASH: invalid frameRate ("${attribute.value}")`);
-        } else {
-          parsedAdaptation.frameRate = frameRate;
-        }
-      }
+      case "frameRate":
+        parsedAdaptation.framerate = attribute.value;
         break;
 
       case "height": {
