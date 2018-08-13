@@ -26,6 +26,9 @@ import {
 import {
   map,
   mergeMap,
+  startWith,
+  switchMap,
+  takeUntil,
 } from "rxjs/operators";
 import config from "../../config";
 import { ICustomError } from "../../errors";
@@ -64,6 +67,7 @@ import StreamLoader, {
 } from "./stream_loader";
 import {
   IManifestReadyEvent,
+  IReloadingStreamEvent,
   IStreamClockTick,
   IStreamWarningEvent,
 } from "./types";
@@ -119,6 +123,7 @@ export type IStreamEvent =
   IManifestReadyEvent |
   IStreamLoaderEvent |
   IEMEManagerEvent |
+  IReloadingStreamEvent |
   IStreamWarningEvent;
 
 /**
@@ -213,10 +218,26 @@ export default function Stream({
     const initialTime = getInitialTime(manifest, startAt);
     log.debug("initial time calculated:", initialTime);
 
-    return observableConcat(
+    // TODO use the Subject somewhere :p
+    const reloadStreamSubject$ = new Subject<void>();
+    const reloadStream$ : Observable<IStreamEvent> = reloadStreamSubject$.pipe(
+      switchMap(() => {
+        const currentPosition = videoElement.currentTime;
+        const isPaused = videoElement.paused;
+        return openMediaSource(videoElement).pipe(
+          mergeMap(newMS => loadStream(newMS, currentPosition, !isPaused)),
+          startWith(EVENTS.reloadingStream())
+        );
+      })
+    );
+
+    const initialLoad$ = observableConcat(
       observableOf(EVENTS.manifestReady(abrManager, manifest)),
       loadStream(mediaSource, initialTime, autoPlay)
+        .pipe(takeUntil(reloadStreamSubject$))
     );
+
+    return observableMerge(initialLoad$, reloadStream$);
   }));
 
   return observableMerge(

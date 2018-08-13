@@ -1875,6 +1875,9 @@ class Player extends EventEmitter<PLAYER_EVENT_STRINGS, any> {
       case "periodBufferCleared":
         this._priv_onPeriodBufferCleared(streamInfos.value);
         break;
+      case "reloading-stream":
+        this._priv_onStreamReload();
+        break;
       case "representationChange":
         this._priv_onRepresentationChange(streamInfos.value);
         break;
@@ -2118,6 +2121,12 @@ class Player extends EventEmitter<PLAYER_EVENT_STRINGS, any> {
           this._priv_trackManager.removePeriod(type, period);
         }
         break;
+    }
+  }
+
+  private _priv_onStreamReload() {
+    if (this._priv_trackManager) {
+      this._priv_trackManager.resetPeriods();
     }
   }
 
