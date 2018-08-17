@@ -45,6 +45,10 @@ import Manifest, {
 } from "../../manifest";
 import arrayIncludes from "../../utils/array-includes";
 import InitializationSegmentCache from "../../utils/initialization_segment_cache";
+import {
+  convertToRanges,
+  keepRangeIntersection,
+} from "../../utils/ranges";
 import SortedList from "../../utils/sorted_list";
 import WeakMapMemory from "../../utils/weak_map_memory";
 import ABRManager from "../abr";
@@ -77,6 +81,12 @@ import {
 } from "./types";
 
 export type IPeriodBufferManagerClockTick = IAdaptationBufferClockTick;
+
+const {
+  DEFAULT_MAX_PIPELINES_RETRY_ON_ERROR,
+  DEFAULT_MAX_PIPELINES_RETRY_ON_OFFLINE,
+  ADAPTATION_SWITCH_BUFFER_PADDINGS,
+} = config;
 
 /**
  * Create and manage the various Buffer Observables needed for the content to
@@ -470,9 +480,9 @@ export default function PeriodBufferManager(
 
         if (sourceBufferManager.has(bufferType)) {
           log.info(`clearing previous ${bufferType} SourceBuffer`);
-          const _queuedSourceBuffer = sourceBufferManager.get(bufferType);
-          cleanBuffer$ = _queuedSourceBuffer
-            .removeBuffer({ start: period.start, end: period.end || Infinity })
+          const _qSourceBuffer = sourceBufferManager.get(bufferType);
+          cleanBuffer$ = _qSourceBuffer
+            .removeBuffer(period.start, period.end || Infinity)
             .pipe(mapTo(null));
         } else {
           cleanBuffer$ = observableOf(null);
@@ -486,71 +496,82 @@ export default function PeriodBufferManager(
 
       log.info(`updating ${bufferType} adaptation`, adaptation, period);
 
-      // 1 - create or reuse the SourceBuffer
-      let queuedSourceBuffer : QueuedSourceBuffer<any>;
-      if (sourceBufferManager.has(bufferType)) {
-        log.info("reusing a previous SourceBuffer for the type", bufferType);
-        queuedSourceBuffer = sourceBufferManager.get(bufferType);
-      } else {
-        const codec = getFirstDeclaredMimeType(adaptation);
-        const sourceBufferOptions = bufferType === "text" ?
-          options.textTrackOptions : undefined;
-        queuedSourceBuffer = sourceBufferManager
-          .createSourceBuffer(bufferType, codec, sourceBufferOptions);
-      }
-
-      // 2 - create or reuse the associated BufferGarbageCollector and
-      // SegmentBookkeeper
-      const bufferGarbageCollector$ = garbageCollectors.get(queuedSourceBuffer);
-      const segmentBookkeeper = segmentBookkeepers.get(queuedSourceBuffer);
-
-      // TODO Clean previous QueuedSourceBuffer for previous content in the period
-      // // 3 - Clean possible content from a precedent adaptation in this period
-      // // (take the clock into account to avoid removing "now" for native sourceBuffers)
-      // // like:
-      // return clock$.pluck("currentTime").take(1).mergeMap(currentTime => {
-      // })
-
-      // 3 - create the pipeline
-      const pipelineOptions = getPipelineOptions(
-        bufferType, options.segmentRetry, options.offlineRetry);
-      const pipeline = segmentPipelinesManager
-        .createPipeline(bufferType, pipelineOptions);
-
-      // 4 - create the Buffer
-      const adaptationBuffer$ = AdaptationBuffer(
-        clock$,
-        queuedSourceBuffer,
-        segmentBookkeeper,
-        pipeline,
-        wantedBufferAhead$,
-        { manifest, period, adaptation },
-        abrManager
-      ).pipe(catchError<IAdaptationBufferEvent<any>, never>((error : Error) => {
-        // non native buffer should not impact the stability of the
-        // player. ie: if a text buffer sends an error, we want to
-        // continue streaming without any subtitles
-        if (!SourceBufferManager.isNative(bufferType)) {
-          log.error("custom buffer: ", bufferType,
-            "has crashed. Aborting it.", error);
-          sourceBufferManager.disposeSourceBuffer(bufferType);
-          return observableConcat(
-            observableOf(EVENTS.warning(error)),
-            createFakeBuffer(
-              clock$, wantedBufferAhead$, bufferType, { manifest, period })
-          );
-        }
-
-        log.error(
-          "native buffer: ", bufferType, "has crashed. Stopping playback.", error);
-        throw error; // else, throw
-      }));
-
-      // 5 - Return the buffer and send right events
+      const qSourceBuffer = createOrReuseQueuedSourceBuffer(bufferType, adaptation);
+      const cleanPreviousBuffer$ = clock$.pipe(
+        take(1),
+        mergeMap(({ currentTime }) =>
+          cleanPreviousSourceBuffer(qSourceBuffer, period, bufferType, currentTime)
+        )
+      );
+      const bufferGarbageCollector$ = garbageCollectors.get(qSourceBuffer);
+      const adaptationBuffer$ = createAdaptationBuffer(
+        bufferType, period, adaptation, qSourceBuffer);
       return observableConcat(
         observableOf(EVENTS.adaptationChange(bufferType, adaptation, period)),
+        cleanPreviousBuffer$.pipe(ignoreElements()),
         observableMerge(adaptationBuffer$, bufferGarbageCollector$)
       );
+    }));
+  }
+
+  /**
+   * @param {string} bufferType
+   * @param {Object} adaptation
+   * @returns {Object}
+   */
+  function createOrReuseQueuedSourceBuffer<T>(
+    bufferType : IBufferType,
+    adaptation : Adaptation
+  ) : QueuedSourceBuffer<T> {
+    if (sourceBufferManager.has(bufferType)) {
+      log.info("reusing a previous SourceBuffer for the type", bufferType);
+      return sourceBufferManager.get(bufferType);
+    }
+    const codec = getFirstDeclaredMimeType(adaptation);
+    const sbOptions = bufferType === "text" ?  options.textTrackOptions : undefined;
+    return sourceBufferManager.createSourceBuffer(bufferType, codec, sbOptions);
+  }
+
+  /**
+   * @param {string} bufferType
+   * @param {Object} period
+   * @param {Object} adaptation
+   * @param {Object} qSourceBuffer
+   * @returns {Observable}
+   */
+  function createAdaptationBuffer<T>(
+    bufferType : IBufferType,
+    period: Period,
+    adaptation : Adaptation,
+    qSourceBuffer : QueuedSourceBuffer<T>
+  ) : Observable<IAdaptationBufferEvent<T>> {
+    const segmentBookkeeper = segmentBookkeepers.get(qSourceBuffer);
+    const pipelineOptions = getPipelineOptions(
+      bufferType, options.segmentRetry, options.offlineRetry);
+    const pipeline = segmentPipelinesManager
+      .createPipeline(bufferType, pipelineOptions);
+     return AdaptationBuffer(
+      clock$,
+      qSourceBuffer,
+      segmentBookkeeper,
+      pipeline,
+      wantedBufferAhead$,
+      { manifest, period, adaptation },
+      abrManager
+    ).pipe(catchError<IAdaptationBufferEvent<any>, never>((error : Error) => {
+      // non native buffer should not impact the stability of the
+      // player. ie: if a text buffer sends an error, we want to
+      // continue streaming without any subtitles
+      if (!SourceBufferManager.isNative(bufferType)) {
+        log.error("custom buffer: ", bufferType, "has crashed. Aborting it.", error);
+        sourceBufferManager.disposeSourceBuffer(bufferType);
+        return observableConcat<IPeriodBufferEvent>(
+          observableOf(EVENTS.warning(error)),
+          createFakeBuffer(clock$, wantedBufferAhead$, bufferType, { manifest, period })
+        );
+      }
+      log.error(`native ${bufferType} buffer has crashed. Stopping playback.`, error);
+      throw error;
     }));
   }
 }
@@ -576,17 +597,66 @@ function getPipelineOptions(
     maxRetry = 0; // Deactivate BIF fetching if it fails
   } else {
     maxRetry = retry != null ?
-      retry : config.DEFAULT_MAX_PIPELINES_RETRY_ON_ERROR;
+      retry : DEFAULT_MAX_PIPELINES_RETRY_ON_ERROR;
   }
 
   maxRetryOffline = offlineRetry != null ?
-    offlineRetry : config.DEFAULT_MAX_PIPELINES_RETRY_ON_OFFLINE;
+    offlineRetry : DEFAULT_MAX_PIPELINES_RETRY_ON_OFFLINE;
 
   return {
     cache,
     maxRetry,
     maxRetryOffline,
   };
+}
+
+/**
+ * Clean up previous SourceBuffer with paddings relative to the current
+ * position.
+ *
+ * Those paddings are based on the config.
+ * @param {QueuedSourceBuffer} qSourceBuffer
+ * @param {Object} period
+ * @param {string} bufferType
+ * @param {number} currentTime
+ * @returns {Observable}
+ */
+function cleanPreviousSourceBuffer(
+  qSourceBuffer : QueuedSourceBuffer<unknown>,
+  period : Period,
+  bufferType : IBufferType,
+  currentTime : number
+) : Observable<void> {
+  if (!qSourceBuffer.getBuffered().length) {
+    return observableOf(undefined);
+  }
+  const bufferedRanges = convertToRanges(qSourceBuffer.getBuffered());
+  const start = period.start;
+  const end = period.end || Infinity;
+  const intersection = keepRangeIntersection(bufferedRanges, [{ start, end }]);
+  if (!intersection.length) {
+    return observableOf(undefined);
+  }
+
+  const paddingBefore = ADAPTATION_SWITCH_BUFFER_PADDINGS[bufferType].before || 0;
+  const paddingAfter = ADAPTATION_SWITCH_BUFFER_PADDINGS[bufferType].after || 0;
+  if (
+    !paddingAfter && !paddingBefore ||
+    (currentTime - paddingBefore) >= end ||
+    (currentTime + paddingAfter) <= start
+  ) {
+    return qSourceBuffer.removeBuffer(start, end);
+  }
+  if (currentTime - paddingBefore <= start) {
+    return qSourceBuffer.removeBuffer(currentTime + paddingAfter, end);
+  }
+  if (currentTime + paddingAfter >= end) {
+    return qSourceBuffer.removeBuffer(start, currentTime - paddingBefore);
+  }
+  return observableConcat(
+    qSourceBuffer.removeBuffer(start, currentTime - paddingBefore),
+    qSourceBuffer.removeBuffer(currentTime + paddingAfter, end)
+  );
 }
 
 /**

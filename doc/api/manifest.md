@@ -311,7 +311,12 @@ The represesentation index for this adaptation.
 See [the RepresentationIndex chapter](#representation-index) for more info about
 a Representation's structure.
 
+#### frameRate
 
+_type_: ``string|undefined``
+
+The represesentation frame rate for this adaptation. It defines either the number of frames
+per second as an integer (24), or as a ratio (24000 / 1000).
 
 <a name="representation-index"></a>
 ## Structure of a RepresentationIndex Object ###################################

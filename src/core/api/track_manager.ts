@@ -15,14 +15,18 @@
  */
 
 /**
- * This file is used to abstract the notion of text and audio language-switching
+ * This file is used to abstract the notion of text and audio tracks switching
  * for an easier API management.
  */
 
 import arrayFind from "array-find";
 import { Subject } from "rxjs";
 import log from "../../log";
-import { Adaptation, Period } from "../../manifest";
+import {
+  Adaptation,
+  Period,
+  Representation,
+} from "../../manifest";
 import arrayIncludes from "../../utils/array-includes";
 import SortedList from "../../utils/sorted_list";
 
@@ -40,68 +44,91 @@ export type ITextTrackPreference = null | {
   closedCaption : boolean;
 };
 
-// audio track returned by the LanguageManager
-export interface ILMAudioTrack {
+// audio track returned by the TrackManager
+export interface ITMAudioTrack {
   language : string;
   normalized : string;
   audioDescription : boolean;
   id : number|string;
 }
 
-// text track returned by the LanguageManager
-export interface ILMTextTrack {
+// text track returned by the TrackManager
+export interface ITMTextTrack {
   language : string;
   normalized : string;
   closedCaption : boolean;
   id : number|string;
 }
 
-// audio track from a list of audio tracks returned by the LanguageManager
-export interface ILMAudioTrackListItem extends ILMAudioTrack {
+interface ITMVideoRepresentation {
+  id : string|number;
+  bitrate : number;
+  width? : number;
+  height? : number;
+  codec? : string;
+  frameRate? : string;
+}
+
+// video track returned by the TrackManager
+export interface ITMVideoTrack {
+  id : number|string;
+  representations: ITMVideoRepresentation[];
+}
+
+// audio track from a list of audio tracks returned by the TrackManager
+export interface ITMAudioTrackListItem extends ITMAudioTrack {
   active : boolean;
 }
 
-// text track from a list of text tracks returned by the LanguageManager
-export interface ILMTextTrackListItem extends ILMTextTrack {
+// text track from a list of text tracks returned by the TrackManager
+export interface ITMTextTrackListItem extends ITMTextTrack {
+  active : boolean;
+}
+
+// video track from a list of video tracks returned by the TrackManager
+export interface ITMVideoTrackListItem extends ITMVideoTrack {
   active : boolean;
 }
 
 // stored audio informations for a single period
-interface ILMPeriodAudioInfos {
+interface ITMPeriodAudioInfos {
   adaptations : Adaptation[];
   adaptation$ : Subject<Adaptation|null> ;
 }
 
 // stored text informations for a single period
-interface ILMPeriodTextInfos {
+interface ITMPeriodTextInfos {
+  adaptations : Adaptation[];
+  adaptation$ : Subject<Adaptation|null> ;
+}
+
+// stored video informations for a single period
+interface ITMPeriodVideoInfos {
   adaptations : Adaptation[];
   adaptation$ : Subject<Adaptation|null> ;
 }
 
 // stored informations for a single period
-interface ILMPeriodInfos {
+interface ITMPeriodInfos {
   period : Period;
-  audio? : ILMPeriodAudioInfos;
-  text? : ILMPeriodTextInfos;
+  audio? : ITMPeriodAudioInfos;
+  text? : ITMPeriodTextInfos;
+  video? : ITMPeriodVideoInfos;
 }
 
 /**
  * Manage audio and text tracks for all active periods.
- *
- * Most methods here allow to interact with the first chronologically added
- * Period.
- *
- * Languages for subsequent periods are also chosen accordingly.
- * @class LanguageManager
+ * Chose the audio and text tracks for each period and record this choice.
+ * @class TrackManager
  */
-export default class LanguageManager {
+export default class TrackManager {
   /**
-   * Current Periods considered by the LanguageManager.
+   * Current Periods considered by the TrackManager.
    * Sorted by start time ascending
    * @type {SortedList}
    * @private
    */
-  private _periods : SortedList<ILMPeriodInfos>;
+  private _periods : SortedList<ITMPeriodInfos>;
 
   /**
    * Array of preferred languages for audio tracks.
@@ -132,6 +159,12 @@ export default class LanguageManager {
   private _textChoiceMemory : WeakMap<Period, Adaptation|null>;
 
   /**
+   * Memoization of the previously-chosen video Adaptation for each Period.
+   * @type {WeakMap}
+   */
+  private _videoChoiceMemory : WeakMap<Period, Adaptation|null>;
+
+  /**
    * @param {Object} defaults
    */
   constructor(defaults : {
@@ -146,6 +179,7 @@ export default class LanguageManager {
 
     this._audioChoiceMemory = new WeakMap();
     this._textChoiceMemory = new WeakMap();
+    this._videoChoiceMemory = new WeakMap();
 
     this._preferredAudioTracks = preferredAudioTracks || [];
     this._preferredTextTracks = preferredTextTracks || [];
@@ -158,14 +192,14 @@ export default class LanguageManager {
    * @param {Subject} adaptations
    */
   public addPeriod(
-    bufferType : "audio" | "text",
+    bufferType : "audio" | "text"| "video",
     period : Period,
     adaptation$ : Subject<Adaptation|null>
   ) : void {
     const periodItem = getPeriodItem(this._periods, period);
     if (periodItem != null) {
       if (periodItem[bufferType] != null) {
-        log.warn(`LanguageManager: ${bufferType} already added for period`, period);
+        log.warn(`TrackManager: ${bufferType} already added for period`, period);
         return;
       } else {
         periodItem[bufferType] = {
@@ -190,18 +224,18 @@ export default class LanguageManager {
    * @param {Period} period
    */
   public removePeriod(
-    bufferType : "audio" | "text",
+    bufferType : "audio" | "text" | "video",
     period : Period
   ) : void {
     const periodIndex = findPeriodIndex(this._periods, period);
     if (periodIndex == null) {
-      log.warn(`LanguageManager: ${bufferType} not found for period`, period);
+      log.warn(`TrackManager: ${bufferType} not found for period`, period);
       return;
     }
 
     const periodItem = this._periods.get(periodIndex);
     if (periodItem[bufferType] == null) {
-      log.warn(`LanguageManager: ${bufferType} already removed for period`, period);
+      log.warn(`TrackManager: ${bufferType} already removed for period`, period);
       return;
     }
     delete periodItem[bufferType];
@@ -218,6 +252,7 @@ export default class LanguageManager {
   public update() : void {
     this._updateAudioTrackChoices();
     this._updateTextTrackChoices();
+    this._updateVideoTrackChoices();
   }
 
   /**
@@ -232,7 +267,7 @@ export default class LanguageManager {
     const periodItem = getPeriodItem(this._periods, period);
     const audioInfos = periodItem && periodItem.audio;
     if (!audioInfos || !periodItem) {
-      throw new Error("LanguageManager: Given Period not found.");
+      throw new Error("TrackManager: Given Period not found.");
     }
 
     const preferredAudioTracks = this._preferredAudioTracks;
@@ -265,7 +300,7 @@ export default class LanguageManager {
     const periodItem = getPeriodItem(this._periods, period);
     const textInfos = periodItem && periodItem.text;
     if (!textInfos || !periodItem) {
-      throw new Error("LanguageManager: Given Period not found.");
+      throw new Error("TrackManager: Given Period not found.");
     }
 
     const preferredTextTracks = this._preferredTextTracks;
@@ -286,6 +321,37 @@ export default class LanguageManager {
   }
 
   /**
+   * Emit initial video Adaptation through the given Subject based on:
+   *   - the preferred video tracks
+   *   - the last choice for this period, if one
+   * @param {Period} period
+   *
+   * @throws Error - Throws if the period given has not been added
+   */
+  public setInitialVideoTrack(period : Period) : void {
+    const periodItem = getPeriodItem(this._periods, period);
+    const videoInfos = periodItem && periodItem.video;
+    if (!videoInfos || !periodItem) {
+      throw new Error("TrackManager: Given Period not found.");
+    }
+
+    const videoAdaptations = period.adaptations.video || [];
+    const chosenVideoAdaptation = this._videoChoiceMemory.get(period);
+
+    if (
+        chosenVideoAdaptation === undefined ||
+      !arrayIncludes(videoAdaptations, chosenVideoAdaptation)
+    ) {
+      const optimalAdaptation = videoAdaptations[0];
+
+      this._videoChoiceMemory.set(period, optimalAdaptation);
+      videoInfos.adaptation$.next(optimalAdaptation);
+    } else {
+      videoInfos.adaptation$.next(chosenVideoAdaptation);
+    }
+  }
+
+  /**
    * Set audio track based on the ID of its adaptation for a given added Period.
    *
    * @param {Period} period - The concerned Period.
@@ -299,7 +365,7 @@ export default class LanguageManager {
     const periodItem = getPeriodItem(this._periods, period);
     const audioInfos = periodItem && periodItem.audio;
     if (!audioInfos) {
-      throw new Error("LanguageManager: Given Period not found.");
+      throw new Error("TrackManager: Given Period not found.");
     }
 
     const wantedAdaptation = arrayFind(audioInfos.adaptations, ({ id }) =>
@@ -331,7 +397,7 @@ export default class LanguageManager {
     const periodItem = getPeriodItem(this._periods, period);
     const textInfos = periodItem && periodItem.text;
     if (!textInfos) {
-      throw new Error("LanguageManager: Given Period not found.");
+      throw new Error("TrackManager: Given Period not found.");
     }
     const wantedAdaptation = arrayFind(textInfos.adaptations, ({ id }) =>
       id === wantedId);
@@ -349,6 +415,38 @@ export default class LanguageManager {
   }
 
   /**
+   * Set video track based on the ID of its adaptation for a given added Period.
+   *
+   * @param {Period} period - The concerned Period.
+   * @param {string} wantedId - adaptation id of the wanted track
+   *
+   * @throws Error - Throws if the period given has not been added
+   * @throws Error - Throws if the given id is not found in any video adaptation
+   * of the given Period.
+   */
+  public setVideoTrackByID(period : Period, wantedId : string) : void {
+    const periodItem = getPeriodItem(this._periods, period);
+    const videoInfos = periodItem && periodItem.video;
+    if (!videoInfos) {
+      throw new Error("LanguageManager: Given Period not found.");
+    }
+
+    const wantedAdaptation = arrayFind(videoInfos.adaptations, ({ id }) =>
+      id === wantedId);
+
+    if (wantedAdaptation === undefined) {
+      throw new Error("Video Track not found.");
+    }
+    const chosenVideoAdaptation = this._videoChoiceMemory.get(period);
+    if (chosenVideoAdaptation === wantedAdaptation) {
+      return;
+    }
+
+    this._videoChoiceMemory.set(period, wantedAdaptation);
+    videoInfos.adaptation$.next(wantedAdaptation);
+  }
+
+  /**
    * Disable the given audio track for a given Period.
    *
    * @param {Period} period - The concerned Period.
@@ -359,7 +457,7 @@ export default class LanguageManager {
     const periodItem = getPeriodItem(this._periods, period);
     const audioInfos = periodItem && periodItem.audio;
     if (!audioInfos) {
-      throw new Error("LanguageManager: Given Period not found.");
+      throw new Error("TrackManager: Given Period not found.");
     }
     const chosenAudioAdaptation = this._audioChoiceMemory.get(period);
     if (chosenAudioAdaptation === null) {
@@ -381,7 +479,7 @@ export default class LanguageManager {
     const periodItem = getPeriodItem(this._periods, period);
     const textInfos = periodItem && periodItem.text;
     if (!textInfos) {
-      throw new Error("LanguageManager: Given Period not found.");
+      throw new Error("TrackManager: Given Period not found.");
     }
     const chosenTextAdaptation = this._textChoiceMemory.get(period);
     if (chosenTextAdaptation === null) {
@@ -402,7 +500,7 @@ export default class LanguageManager {
    * @param {Period} period
    * @returns {Object|null}
    */
-  public getChosenAudioTrack(period : Period) : ILMAudioTrack|null {
+  public getChosenAudioTrack(period : Period) : ITMAudioTrack|null {
     const periodItem = getPeriodItem(this._periods, period);
     const audioInfos = periodItem && periodItem.audio;
     if (audioInfos == null) {
@@ -432,7 +530,7 @@ export default class LanguageManager {
    * @param {Period} period
    * @returns {Object|null}
    */
-  public getChosenTextTrack(period : Period) : ILMTextTrack|null {
+  public getChosenTextTrack(period : Period) : ITMTextTrack|null {
     const periodItem = getPeriodItem(this._periods, period);
     const textInfos = periodItem && periodItem.text;
     if (textInfos == null) {
@@ -453,12 +551,40 @@ export default class LanguageManager {
   }
 
   /**
+   * Returns an object describing the chosen video track for the given video
+   * Period.
+   *
+   * Returns null is the the current video track is disabled or not
+   * set yet.
+   *
+   * @param {Period} period
+   * @returns {Object|null}
+   */
+  public getChosenVideoTrack(period : Period) : ITMVideoTrack|null {
+    const periodItem = getPeriodItem(this._periods, period);
+    const videoInfos = periodItem && periodItem.video;
+    if (videoInfos == null) {
+      return null;
+    }
+
+    const chosenVideoAdaptation = this._videoChoiceMemory.get(period);
+    if (!chosenVideoAdaptation) {
+      return null;
+    }
+    return {
+      id: chosenVideoAdaptation.id,
+      representations: chosenVideoAdaptation.representations
+        .map(parseVideoRepresentation),
+    };
+  }
+
+  /**
    * Returns all available audio tracks for a given Period, as an array of
    * objects.
    *
    * @returns {Array.<Object>}
    */
-  public getAvailableAudioTracks(period : Period) : ILMAudioTrackListItem[] {
+  public getAvailableAudioTracks(period : Period) : ITMAudioTrackListItem[] {
     const periodItem = getPeriodItem(this._periods, period);
     const audioInfos = periodItem && periodItem.audio;
     if (audioInfos == null) {
@@ -485,7 +611,7 @@ export default class LanguageManager {
    * @param {Period} period
    * @returns {Array.<Object>}
    */
-  public getAvailableTextTracks(period : Period) : ILMTextTrackListItem[] {
+  public getAvailableTextTracks(period : Period) : ITMTextTrackListItem[] {
     const periodItem = getPeriodItem(this._periods, period);
     const textInfos = periodItem && periodItem.text;
     if (textInfos == null) {
@@ -503,6 +629,32 @@ export default class LanguageManager {
         id: adaptation.id,
         active: currentId == null ? false : currentId === adaptation.id,
       }));
+  }
+
+  /**
+   * Returns all available video tracks for a given Period, as an array of
+   * objects.
+   *
+   * @returns {Array.<Object>}
+   */
+  public getAvailableVideoTracks(period : Period) : ITMVideoTrackListItem[] {
+    const periodItem = getPeriodItem(this._periods, period);
+    const videoInfos = periodItem && periodItem.video;
+    if (videoInfos == null) {
+      return [];
+    }
+
+    const chosenVideoAdaptation = this._videoChoiceMemory.get(period);
+    const currentId = chosenVideoAdaptation && chosenVideoAdaptation.id;
+
+    return videoInfos.adaptations
+      .map((adaptation) => {
+        return {
+          id: adaptation.id,
+          active: currentId == null ? false : currentId === adaptation.id,
+          representations: adaptation.representations.map(parseVideoRepresentation),
+        };
+    });
   }
 
   private _updateAudioTrackChoices() {
@@ -599,6 +751,51 @@ export default class LanguageManager {
     };
 
     recursiveUpdateTextTrack(0);
+  }
+
+  private _updateVideoTrackChoices() {
+    const recursiveUpdateVideoTrack = (index : number) : void => {
+      if (index >= this._periods.length()) {
+        // we did all video Buffers, exit
+        return;
+      }
+
+      const periodItem = this._periods.get(index);
+      if (periodItem.video == null) {
+        // No video Buffer for this period, check next one
+        recursiveUpdateVideoTrack(index + 1);
+        return;
+      }
+
+      const {
+        period,
+        video: videoItem,
+      } = periodItem;
+      const videoAdaptations = period.adaptations.video || [];
+      const chosenVideoAdaptation = this._videoChoiceMemory.get(period);
+
+      if (
+        chosenVideoAdaptation === null ||
+        (
+          chosenVideoAdaptation !== undefined &&
+          arrayIncludes(videoAdaptations, chosenVideoAdaptation)
+        )
+      ) {
+        // Already best video for this Buffer, check next one
+        recursiveUpdateVideoTrack(index + 1);
+        return;
+      }
+
+      const optimalAdaptation = videoAdaptations[0];
+
+      this._videoChoiceMemory.set(period, optimalAdaptation);
+      videoItem.adaptation$.next(optimalAdaptation);
+
+      // previous "next" call could have changed everything, start over
+      recursiveUpdateVideoTrack(0);
+    };
+
+    recursiveUpdateVideoTrack(0);
   }
 }
 
@@ -779,7 +976,7 @@ function findFirstOptimalTextAdaptation(
 }
 
 function findPeriodIndex(
-  periods : SortedList<ILMPeriodInfos>,
+  periods : SortedList<ITMPeriodInfos>,
   period : Period
 ) : number|undefined {
   for (let i = 0; i < periods.length(); i++) {
@@ -791,13 +988,24 @@ function findPeriodIndex(
 }
 
 function getPeriodItem(
-  periods : SortedList<ILMPeriodInfos>,
+  periods : SortedList<ITMPeriodInfos>,
   period : Period
-) : ILMPeriodInfos|undefined {
+) : ITMPeriodInfos|undefined {
   for (let i = 0; i < periods.length(); i++) {
     const periodI = periods.get(i);
     if (periodI.period.id === period.id) {
       return periodI;
     }
   }
+}
+
+/**
+ * Parse video Representation into a ITMVideoRepresentation.
+ * @param {Object} representation
+ * @returns {Object}
+ */
+function parseVideoRepresentation(
+  { id, bitrate, frameRate, width, height, codec } : Representation
+) : ITMVideoRepresentation {
+  return { id, bitrate, frameRate, width, height, codec };
 }
