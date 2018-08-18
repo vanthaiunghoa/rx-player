@@ -16,6 +16,7 @@
 
 import {
   concat as observableConcat,
+  defer as observableDefer,
   EMPTY,
   merge as observableMerge,
   Observable,
@@ -493,34 +494,30 @@ export default function PeriodBufferManager(
 
       log.info(`updating ${bufferType} adaptation`, adaptation, period);
 
-      const newBuffer$ = clock$.pipe(take(1), mergeMap((tick) => {
-        const qSourceBuffer = createOrReuseQueuedSourceBuffer(bufferType, adaptation);
-        const strategy = getAdaptationSwitchStrategy(
-          qSourceBuffer.getBuffered(), period, bufferType, tick);
-
-        if (strategy.type === "reload-stream") {
-          return observableOf(EVENTS.needsStreamReload());
-        }
-
-        const cleanBuffer$ = strategy.type === "clean-buffer" ?
-          observableConcat(
-            ...strategy.value.map(({ start, end }) =>
-              qSourceBuffer.removeBuffer(start, end)
-            )).pipe(ignoreElements()) : EMPTY;
-
-        const bufferGarbageCollector$ = garbageCollectors.get(qSourceBuffer);
-        const adaptationBuffer$ = createAdaptationBuffer(
-          bufferType, period, adaptation, qSourceBuffer);
-
-        return observableConcat(
-          cleanBuffer$,
-          observableMerge(adaptationBuffer$, bufferGarbageCollector$)
-        );
-      }));
-
+      const qSourceBuffer = createOrReuseQueuedSourceBuffer(bufferType, adaptation);
       return observableConcat<IPeriodBufferEvent>(
         observableOf(EVENTS.adaptationChange(bufferType, adaptation, period)),
-        newBuffer$
+        clock$.pipe(take(1), mergeMap((tick) => {
+          const strategy = getAdaptationSwitchStrategy(
+            qSourceBuffer.getBuffered(), period, bufferType, tick);
+
+          if (strategy.type === "reload-stream") {
+            return observableOf(EVENTS.needsStreamReload());
+          }
+
+          return strategy.type === "clean-buffer" ?
+            observableConcat(
+              ...strategy.value.map(({ start, end }) =>
+                qSourceBuffer.removeBuffer(start, end)
+              )).pipe(ignoreElements()) : EMPTY;
+        })),
+        observableDefer(() => {
+          const bufferGarbageCollector$ = garbageCollectors.get(qSourceBuffer);
+          const adaptationBuffer$ = createAdaptationBuffer(
+            bufferType, period, adaptation, qSourceBuffer);
+
+          return observableMerge(adaptationBuffer$, bufferGarbageCollector$);
+        })
       );
     }));
   }
